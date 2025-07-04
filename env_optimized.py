@@ -114,6 +114,9 @@ class PixelLifeEnvOptimized(gym.Env):
         # Define discrete action space for spice
         self.spice_action_space = spaces.Discrete(self.spice_actions)
         
+        # Define action space for main agent (pixel actions)
+        self.action_space = spaces.MultiDiscrete([5, 4])  # action_type, direction
+        
         # Define observation spaces (simplified for now)
         self.observation_space = spaces.Box(
             low=-1, high=self.max_organisms,
