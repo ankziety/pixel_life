@@ -176,45 +176,51 @@ class PixelLifeRenderer(BasicPixelRenderer):
         """Update display from the environment state."""
         if self.env is not None:
             # Convert environment grid to boolean array for display
-            # Assuming non-zero values should be displayed as white pixels
+            # Live pixels (value 1) should be displayed as white pixels
             env_grid = getattr(self.env, 'grid', None)
             if env_grid is not None:
-                # Resize if needed
+                # Create boolean grid: True for live pixels (value 1), False for others
                 if env_grid.shape != self.grid.shape:
-                    import cv2
-                    resized = cv2.resize(env_grid.astype(np.uint8), 
-                                       (self.grid_width, self.grid_height), 
-                                       interpolation=cv2.INTER_NEAREST)
-                    self.grid = resized > 0
+                    # Simple resize without cv2 dependency
+                    self._resize_grid(env_grid)
                 else:
-                    self.grid = env_grid > 0
+                    self.grid = (env_grid == 1).astype(bool)
+    
+    def _resize_grid(self, env_grid):
+        """Resize environment grid to fit renderer grid."""
+        env_h, env_w = env_grid.shape
+        render_h, render_w = self.grid.shape
+        
+        # Simple nearest neighbor scaling
+        for y in range(render_h):
+            for x in range(render_w):
+                # Map renderer coordinates to environment coordinates
+                env_y = int(y * env_h / render_h)
+                env_x = int(x * env_w / render_w)
+                self.grid[y, x] = (env_grid[env_y, env_x] == 1)
     
     def run_with_env(self):
         """Run the renderer with environment integration."""
         while self.running:
             self.handle_events()
             
-            if not self.paused and self.env is not None:
-                # Step the environment
-                try:
-                    # This would need to be adapted based on your environment's interface
-                    self.env.step({}, {})  # Placeholder for actual actions
-                    self.update_from_env()
-                    self.step_count += 1
-                except Exception as e:
-                    print(f"Environment step error: {e}")
-                    self.paused = True
+            # Update display from environment
+            self.update_from_env()
+            
+            # Show environment info
+            if self.env is not None:
+                # Show step count and pixel count
+                font = pygame.font.Font(None, 24)
+                step_text = font.render(f"Step: {self.env.tick_count}", True, self.WHITE)
+                pixel_text = font.render(f"Pixels: {len(self.env.live_pixels)}", True, self.WHITE)
+                energy_text = font.render(f"Avg Energy: {np.mean(list(self.env.pixel_energy.values())) if self.env.pixel_energy else 0:.1f}", True, self.WHITE)
+                
+                self.screen.blit(step_text, (10, 10))
+                self.screen.blit(pixel_text, (10, 35))
+                self.screen.blit(energy_text, (10, 60))
             
             self.render()
-            
-            # Show step count
-            if self.env is not None:
-                font = pygame.font.Font(None, 24)
-                text = font.render(f"Step: {self.step_count}", True, self.WHITE)
-                self.screen.blit(text, (10, 10))
-            
-            pygame.display.flip()
-            self.clock.tick(10)  # Slower for environment steps
+            self.clock.tick(30)  # 30 FPS for smooth display
         
         pygame.quit()
         sys.exit()

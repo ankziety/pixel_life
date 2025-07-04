@@ -197,11 +197,16 @@ class PixelLifeEnvOptimized(gym.Env):
         """Get observations for both agents efficiently."""
         start_time = time.perf_counter()
         
-        # Crop grid to active area for main agent
-        obs_main = self.grid[:self.H, :self.W].copy()
-        
-        # Full grid for spice agent  
-        obs_spice = self.grid.copy()
+        # Handle case where grid is not initialized
+        if self.grid is None:
+            obs_main = np.zeros((self.max_size, self.max_size), dtype=np.int16)
+            obs_spice = np.zeros((self.max_size, self.max_size), dtype=np.int16)
+        else:
+            # Create a (max_size, max_size) array for obs_main, zero-padded
+            obs_main = np.zeros((self.max_size, self.max_size), dtype=np.int16)
+            obs_main[:self.H, :self.W] = self.grid[:self.H, :self.W]
+            # Full grid for spice agent  
+            obs_spice = self.grid.copy()
         
         self.perf_stats['obs_time'] = time.perf_counter() - start_time
         
@@ -234,7 +239,7 @@ class PixelLifeEnvOptimized(gym.Env):
         live_pixels = list(self.pixel_to_org.keys())
         n_pixels = len(live_pixels)
         
-        if n_pixels > 0:
+        if n_pixels > 0 and self.origin is not None:
             # Copy to pre-allocated buffer
             for i, (y, x) in enumerate(live_pixels):
                 self.coords_buffer[i, 0] = y
@@ -263,6 +268,21 @@ class PixelLifeEnvOptimized(gym.Env):
                     elif action_type == 3:  # Combine
                         self._do_combine_optimized(y, x, direction)
                     elif action_type == 4:  # Forfeit
+                        self.do_forfeit(y, x)
+        elif n_pixels > 0:
+            # If origin is None, just execute pixel actions in arbitrary order
+            for y, x in live_pixels:
+                if (y, x) not in self.pixel_to_org:
+                    continue
+                if (y, x) in pixel_actions:
+                    action_type, direction = pixel_actions[(y, x)]
+                    if action_type == 1:
+                        self._do_split_optimized(y, x, direction)
+                    elif action_type == 2:
+                        self._do_consume_optimized(y, x, direction)
+                    elif action_type == 3:
+                        self._do_combine_optimized(y, x, direction)
+                    elif action_type == 4:
                         self.do_forfeit(y, x)
         
         self.perf_stats['action_time'] = time.perf_counter() - action_start
@@ -480,8 +500,9 @@ class PixelLifeEnvOptimized(gym.Env):
             for org_id, cells in self.organisms.items():
                 self.organisms[org_id] = {(y + 5, x) for y, x in cells}
             
-            # Update origin
-            self.origin = (self.origin[0] + 5, self.origin[1])
+            # Update origin if it exists
+            if self.origin is not None:
+                self.origin = (self.origin[0] + 5, self.origin[1])
             self.H += 5
             
         elif direction == 3 and self.W < self.max_size:  # Left
@@ -501,8 +522,9 @@ class PixelLifeEnvOptimized(gym.Env):
             for org_id, cells in self.organisms.items():
                 self.organisms[org_id] = {(y, x + 5) for y, x in cells}
             
-            # Update origin
-            self.origin = (self.origin[0], self.origin[1] + 5)
+            # Update origin if it exists
+            if self.origin is not None:
+                self.origin = (self.origin[0], self.origin[1] + 5)
             self.W += 5
     
     def _apply_tweak(self):
@@ -519,7 +541,7 @@ class PixelLifeEnvOptimized(gym.Env):
         """Render the environment."""
         if mode == 'human':
             # Create color map
-            colors = ['white', 'black'] + plt.cm.tab20.colors
+            colors = ['white', 'black'] + list(plt.cm.tab20.colors)
             n_colors = len(colors)
             cmap = mcolors.ListedColormap(colors)
             
@@ -533,21 +555,13 @@ class PixelLifeEnvOptimized(gym.Env):
                     if grid_display[y, x] > 0:
                         grid_display[y, x] = (grid_display[y, x] % (n_colors - 2)) + 2
             
-            plt.imshow(grid_display, cmap=cmap, interpolation='nearest')
-            plt.title(f'Pixel Life - Tick {self.tick_count} - Organisms: {len(self.organisms)}')
+            plt.imshow(grid_display, cmap=cmap, vmin=0, vmax=n_colors-1)
+            plt.title(f"Tick: {self.tick_count}, Organisms: {len(self.organisms)}")
             plt.axis('off')
             
-            # Add grid lines
-            for i in range(self.W + 1):
-                plt.axvline(x=i - 0.5, color='gray', linewidth=0.5, alpha=0.3)
-            for i in range(self.H + 1):
-                plt.axhline(y=i - 0.5, color='gray', linewidth=0.5, alpha=0.3)
-            
-            # Mark origin
-            if self.origin:
+            # Mark origin if it exists
+            if self.origin is not None:
                 plt.plot(self.origin[1], self.origin[0], 'r*', markersize=15)
-            
-            plt.tight_layout()
             plt.show()
     
     def close(self):

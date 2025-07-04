@@ -1,23 +1,23 @@
-"""Simple demonstration of the Pixel Life environment."""
+"""Demo script using pygame renderer with the main Pixel Life environment."""
 
-from env import PixelLifeEnv
-import matplotlib.pyplot as plt
 import numpy as np
+from env import PixelLifeEnv
+from basic_renderer import PixelLifeRenderer
 import time
 import argparse
 
 
-def demo_pixel_life():
-    """Run a visual demonstration of Pixel Life."""
-    parser = argparse.ArgumentParser(description='Pixel Life Demo with Matplotlib Renderer')
-    parser.add_argument('--steps', type=int, default=500, 
-                       help='Maximum number of steps (default: 500)')
+def main():
+    """Run the demo with pygame renderer."""
+    parser = argparse.ArgumentParser(description='Pixel Life Demo with Pygame Renderer')
+    parser.add_argument('--steps', type=int, default=5000, 
+                       help='Maximum number of steps (default: 5000)')
     parser.add_argument('--run-forever', action='store_true',
                        help='Run until environment naturally ends (ignores --steps)')
     args = parser.parse_args()
     
     print("=" * 50)
-    print("PIXEL LIFE DEMONSTRATION")
+    print("PIXEL LIFE DEMONSTRATION (PYGAME RENDERER)")
     print("=" * 50)
     
     # Create environment
@@ -28,15 +28,23 @@ def demo_pixel_life():
     obs = env.reset()
     print(f"✓ Initial pixels: {len(env.live_pixels)} pixels")
     
-    # Set up matplotlib for animation
-    plt.ion()
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    # Create pygame renderer
+    renderer = PixelLifeRenderer(
+        env=env,
+        width=800, 
+        height=600, 
+        grid_size=15
+    )
     
     # Run demonstration
     print("\nRunning demonstration...")
     print("- Main agent: Tries to keep pixels alive as long as possible")
     print("- Spice agent: Expands universe and tweaks rules")
     print(f"- Max steps: {'∞ (run forever)' if args.run_forever else args.steps}")
+    print("\nControls:")
+    print("- SPACE: Pause/Unpause")
+    print("- ESC/Q: Quit")
+    print("- Click: Toggle pixels (for testing)")
     print("\nPress Ctrl+C to stop\n")
     
     step = 0
@@ -88,35 +96,8 @@ def demo_pixel_life():
             obs, rewards, done, info = env.step(spice_action, pixel_actions)
             step += 1
             
-            # Update visualization
-            ax1.clear()
-            ax1.imshow(env.grid, cmap='viridis', interpolation='nearest')
-            ax1.set_title(f'Step {step}: {info["live_pixels"]} pixels, avg energy: {info["avg_energy"]:.1f}')
-            ax1.grid(True, alpha=0.3)
-            
-            # Show info panel
-            ax2.clear()
-            ax2.axis('off')
-            info_text = f"Step: {step}\n"
-            info_text += f"Grid Size: {info['grid_size']}\n"
-            info_text += f"Live Pixels: {info['live_pixels']}\n"
-            info_text += f"Dead Pixels: {info['dead_pixels']}\n"
-            info_text += f"Avg Energy: {info['avg_energy']:.2f}\n"
-            info_text += f"Avg Age: {info['avg_age']:.1f}\n"
-            info_text += f"\nMain Reward: {rewards[0]:.1f}\n"
-            info_text += f"Spice Reward: {rewards[1]:.1f}\n"
-            info_text += f"\nLast Spice Action: {['No-op', 'Expand Up', 'Expand Down', 'Expand Left', 'Expand Right', 'Tweak Rule'][spice_action]}\n"
-            
-            if spice_action == 5 and info['spice_success']:
-                info_text += "\nParameters:\n"
-                for param, value in info['params'].items():
-                    info_text += f"  {param}: {value}\n"
-            
-            ax2.text(0.1, 0.9, info_text, transform=ax2.transAxes, 
-                    verticalalignment='top', fontfamily='monospace', fontsize=10)
-            
-            plt.tight_layout()
-            plt.pause(0.05)
+            # Update renderer from environment
+            renderer.update_from_env()
             
             # Print periodic updates
             if step % 50 == 0:
@@ -130,8 +111,6 @@ def demo_pixel_life():
     except KeyboardInterrupt:
         print("\nDemo interrupted by user")
     
-    plt.ioff()
-    
     # Show final state
     print("\nFinal statistics:")
     print(f"- Total steps: {step}")
@@ -141,10 +120,10 @@ def demo_pixel_life():
     print(f"- Average energy: {np.mean(list(env.pixel_energy.values())) if env.pixel_energy else 0:.2f}")
     print(f"- Average age: {np.mean(list(env.pixel_ages.values())) if env.pixel_ages else 0:.1f}")
     
-    # Keep plot open
-    print("\nClose the plot window to exit.")
-    plt.show()
+    # Run the pygame renderer
+    print("\nStarting pygame renderer... Close window or press ESC to exit.")
+    renderer.run_with_env()
 
 
 if __name__ == "__main__":
-    demo_pixel_life()
+    main() 
