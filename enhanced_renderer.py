@@ -15,13 +15,13 @@ import datetime
 
 
 class EnhancedPixelRenderer:
-    def __init__(self, width: int = 1200, height: int = 800, initial_zoom: float = 0.01):
+    def __init__(self, width: int = 1200, height: int = 800, initial_zoom: Optional[float] = None):
         """Initialize the enhanced pixel renderer.
         
         Args:
             width: Initial window width in pixels
             height: Initial window height in pixels  
-            initial_zoom: Initial zoom level (0.01 = 100x smaller pixels)
+            initial_zoom: Initial zoom level (None = auto-fit to window)
         """
         pygame.init()
         
@@ -30,9 +30,9 @@ class EnhancedPixelRenderer:
         self.initial_zoom = initial_zoom
         
         # Zoom and viewport settings
-        self.zoom = initial_zoom
-        self.min_zoom = 0.001  # 1000x smaller
-        self.max_zoom = 10.0   # 10x larger
+        self.zoom = 1.0  # Start with reasonable zoom
+        self.min_zoom = 0.1  # 10x smaller (was 0.001)
+        self.max_zoom = 20.0  # 20x larger (was 10.0)
         self.zoom_speed = 1.2  # Zoom factor per scroll
         
         # Camera/viewport position
@@ -58,6 +58,7 @@ class EnhancedPixelRenderer:
         self.env_grid = None
         self.env_width = 0
         self.env_height = 0
+        self.env_loaded = False  # Track if environment has been loaded
         
         # Control state
         self.running = True
@@ -88,7 +89,7 @@ class EnhancedPixelRenderer:
         print("+/- - Zoom in/out")
         print("D - Toggle debug menu")
         print("E - Export debug info (when debug menu open)")
-    
+
     def handle_events(self):
         """Handle pygame events."""
         for event in pygame.event.get():
@@ -167,29 +168,44 @@ class EnhancedPixelRenderer:
         """Zoom out."""
         self.zoom = max(self.zoom / self.zoom_speed, self.min_zoom)
     
+    def fit_grid_to_window(self):
+        """Auto-calculate zoom to fit the grid to the window."""
+        if self.env_width > 0 and self.env_height > 0:
+            zoom_x = self.width / self.env_width
+            zoom_y = self.height / self.env_height
+            self.zoom = max(self.min_zoom, min(zoom_x, zoom_y, self.max_zoom))
+            # Center the grid
+            self.camera_x = (self.env_width * self.zoom - self.width) / 2
+            self.camera_y = (self.env_height * self.zoom - self.height) / 2
+            print(f"Auto-fitted grid to window: zoom={self.zoom:.3f}")
+
     def zoom_in_at_mouse(self, mouse_pos):
         """Zoom in centered on mouse position."""
         old_zoom = self.zoom
         self.zoom = min(self.zoom * self.zoom_speed, self.max_zoom)
         
         # Adjust camera to keep mouse position fixed
-        zoom_ratio = self.zoom / old_zoom
-        self.camera_x = mouse_pos[0] - (mouse_pos[0] - self.camera_x) * zoom_ratio
-        self.camera_y = mouse_pos[1] - (mouse_pos[1] - self.camera_y) * zoom_ratio
-    
+        if self.zoom != old_zoom:
+            mx, my = mouse_pos
+            wx, wy = self.screen_to_world(mx, my)
+            self.camera_x = wx * self.zoom - mx
+            self.camera_y = wy * self.zoom - my
+
     def zoom_out_at_mouse(self, mouse_pos):
         """Zoom out centered on mouse position."""
         old_zoom = self.zoom
         self.zoom = max(self.zoom / self.zoom_speed, self.min_zoom)
         
         # Adjust camera to keep mouse position fixed
-        zoom_ratio = self.zoom / old_zoom
-        self.camera_x = mouse_pos[0] - (mouse_pos[0] - self.camera_x) * zoom_ratio
-        self.camera_y = mouse_pos[1] - (mouse_pos[1] - self.camera_y) * zoom_ratio
+        if self.zoom != old_zoom:
+            mx, my = mouse_pos
+            wx, wy = self.screen_to_world(mx, my)
+            self.camera_x = wx * self.zoom - mx
+            self.camera_y = wy * self.zoom - my
     
     def reset_view(self):
         """Reset zoom and camera position."""
-        self.zoom = self.initial_zoom
+        self.zoom = self.initial_zoom if self.initial_zoom is not None else 1.0
         self.camera_x = 0
         self.camera_y = 0
         print("Reset view")
@@ -236,6 +252,14 @@ class EnhancedPixelRenderer:
         if hasattr(env, 'grid') and env.grid is not None:
             self.env_grid = env.grid.copy()
             self.env_height, self.env_width = env.grid.shape
+            
+            # Auto-fit grid to window on first load
+            if self.initial_zoom is None and not self.env_loaded:
+                self.fit_grid_to_window()
+                self.env_loaded = True # Set flag to True after first fit
+            elif self.initial_zoom is not None:
+                self.zoom = max(self.min_zoom, min(self.initial_zoom, self.max_zoom))
+            
             # Collect debug info if available
             self.debug_info = {}
             if hasattr(env, 'tick_count'):
@@ -298,7 +322,7 @@ class EnhancedPixelRenderer:
         env = getattr(self, 'env', None)
         if env is not None:
             stats["tick_count"] = getattr(env, "tick_count", None)
-            stats["H"] = getattr(env, "H", None)
+            stats["H"] = getattr(env, "W", None)
             stats["W"] = getattr(env, "W", None)
             stats["params"] = getattr(env, "params", None)
             stats["pixel_energy_mean"] = float(np.mean(list(getattr(env, "pixel_energy", {}).values())) if getattr(env, "pixel_energy", None) else 0)
@@ -323,6 +347,12 @@ class EnhancedPixelRenderer:
             end_x = min(self.env_width, int(end_x + 2))
             end_y = min(self.env_height, int(end_y + 2))
             
+            # Ensure we don't exceed grid bounds
+            start_x = max(0, min(start_x, self.env_width - 1))
+            start_y = max(0, min(start_y, self.env_height - 1))
+            end_x = max(0, min(end_x, self.env_width))
+            end_y = max(0, min(end_y, self.env_height))
+            
             # Draw visible pixels
             for y in range(start_y, end_y):
                 for x in range(start_x, end_x):
@@ -330,15 +360,17 @@ class EnhancedPixelRenderer:
                         # Convert to screen coordinates
                         screen_x, screen_y = self.world_to_screen(x, y)
                         
-                        # Calculate pixel size based on zoom
-                        pixel_size = max(1, int(self.zoom))
+                        # Calculate pixel size based on zoom - ensure minimum visibility
+                        pixel_size = max(1, int(round(self.zoom)))
                         
-                        # Draw pixel
-                        rect = pygame.Rect(screen_x, screen_y, pixel_size, pixel_size)
-                        pygame.draw.rect(self.screen, self.WHITE, rect)
+                        # Only draw if pixel is visible on screen
+                        if (0 <= screen_x < self.width and 0 <= screen_y < self.height):
+                            # Draw pixel with proper bounds checking
+                            rect = pygame.Rect(screen_x, screen_y, pixel_size, pixel_size)
+                            pygame.draw.rect(self.screen, self.WHITE, rect)
             
             # Draw grid lines if zoomed in enough
-            if self.zoom > 0.1:
+            if self.zoom > 0.5:
                 self.draw_grid_lines(start_x, start_y, end_x, end_y)
         
         # Draw UI
@@ -350,6 +382,12 @@ class EnhancedPixelRenderer:
     
     def draw_grid_lines(self, start_x, start_y, end_x, end_y):
         """Draw grid lines."""
+        # Ensure bounds are within grid dimensions
+        start_x = max(0, min(start_x, self.env_width - 1))
+        start_y = max(0, min(start_y, self.env_height - 1))
+        end_x = max(0, min(end_x, self.env_width - 1))
+        end_y = max(0, min(end_y, self.env_height - 1))
+        
         # Vertical lines
         for x in range(start_x, end_x + 1):
             screen_x, _ = self.world_to_screen(x, 0)
