@@ -43,7 +43,7 @@ def main():
         env=env,
         width=1400, 
         height=900, 
-        initial_zoom=args.initial_zoom
+        initial_zoom=None  # Auto-fit to window
     )
     
     # Run demonstration

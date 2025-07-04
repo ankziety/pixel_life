@@ -210,7 +210,7 @@ def run_enhanced_demo(args):
         env=env,
         width=1400,
         height=900,
-        initial_zoom=args.initial_zoom
+        initial_zoom=None  # Auto-fit to window
     )
     
     print(f"Enhanced renderer started with {args.initial_zoom}x zoom")
