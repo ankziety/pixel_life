@@ -76,7 +76,7 @@ class PixelLifeWrapper(gym.Env):
             else:
                 # We are spice, need pixel actions
                 other_action = {}
-                for coord in self.env.pixel_to_org.keys():
+                for coord in self.env.live_pixels:
                     other_action[coord] = (
                         np.random.randint(0, 5),
                         np.random.randint(0, 4)
@@ -109,16 +109,32 @@ class PixelLifeWrapper(gym.Env):
         return self._flatten_observation(obs_dict)
     
     def _convert_main_action(self, action):
-        """Convert main agent's flattened action to pixel actions dict."""
+        """Convert main agent's flattened action to pixel actions dict.
+        
+        Now supports per-pixel action prediction by using the action as a seed
+        for generating diverse actions for each pixel.
+        """
         pixel_actions = {}
         
         # Convert flattened action (0-19) back to (action_type, direction)
-        action_type = action // 4  # 0-4
-        direction = action % 4     # 0-3
+        base_action_type = action // 4  # 0-4
+        base_direction = action % 4     # 0-3
         
-        # For simplicity, all pixels take the same action initially
-        # In a more sophisticated approach, you'd have per-pixel policies
-        for coord in self.env.pixel_to_org.keys():
+        # Generate per-pixel actions using the base action as a seed
+        # This allows for coordinated but diverse pixel behavior
+        for i, coord in enumerate(self.env.live_pixels):
+            # Use pixel position and base action to generate unique action
+            y, x = coord
+            
+            # Create variation based on pixel position and base action
+            action_variation = (y * 7 + x * 11 + base_action_type * 13) % 20
+            action_type = action_variation // 4
+            direction = action_variation % 4
+            
+            # Ensure valid action types (0-4)
+            action_type = min(action_type, 4)
+            direction = min(direction, 3)
+            
             pixel_actions[coord] = (action_type, direction)
                 
         return pixel_actions
@@ -298,7 +314,7 @@ def train_pixel_life(
                 
                 # Simple pixel actions for evaluation
                 pixel_actions = {}
-                for coord in eval_env.pixel_to_org.keys():
+                for coord in eval_env.live_pixels:
                     pixel_actions[coord] = (1, eval_step % 4)  # Split in different directions
                 
                 # Convert spice action and step
@@ -400,7 +416,7 @@ if __name__ == "__main__":
             
             # Get pixel actions (simplified for now)
             pixel_actions = {}
-            for coord in env.pixel_to_org.keys():
+            for coord in env.live_pixels:
                 # In a full implementation, you'd predict per-pixel actions
                 pixel_actions[coord] = (1, step % 4)
             
