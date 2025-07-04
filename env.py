@@ -1,5 +1,5 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
@@ -82,8 +82,10 @@ class PixelLifeEnv(gym.Env):
         self.fig = None
         self.ax = None
         
-    def reset(self):
-        """Reset environment to initial state."""
+    def reset(self, seed=None, options=None):
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
         # Reset dimensions
         self.H = self.initial_H
         self.W = self.initial_W
@@ -124,8 +126,7 @@ class PixelLifeEnv(gym.Env):
         # Return initial observations
         obs_main = self._get_main_observation()
         obs_spice = self._get_spice_observation()
-        
-        return (obs_main, obs_spice)
+        return (obs_main, obs_spice), {}
     
     def step(self, spice_action, pixel_actions):
         """Execute one environment tick.

@@ -6,8 +6,9 @@ import time
 import numpy as np
 from datetime import datetime
 
+import gymnasium as gym
 import torch
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, DQN
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 from stable_baselines3.common.monitor import Monitor
@@ -16,7 +17,7 @@ from stable_baselines3.common.env_util import make_vec_env
 from env import PixelLifeEnv
 
 
-class PixelLifeWrapper:
+class PixelLifeWrapper(gym.Env):
     """Wrapper to handle the dual-agent nature of PixelLifeEnv for SB3."""
     
     def __init__(self, env, agent_type='main'):
@@ -24,20 +25,48 @@ class PixelLifeWrapper:
         self.agent_type = agent_type
         self.other_model = None  # Will be set during training
         
-        # Copy relevant attributes
-        self.action_space = env.pixel_action_space if agent_type == 'main' else env.spice_action_space
-        self.observation_space = env.observation_space
+        # Copy relevant attributes and flatten action space for SB3 compatibility
+        if agent_type == 'main':
+            # Flatten MultiDiscrete([5, 4]) to Discrete(20) for pixel actions
+            # action_type * 4 + direction
+            self.action_space = gym.spaces.Discrete(5 * 4)  # 20 possible actions
+        else:
+            self.action_space = env.spice_action_space
+        
+        # Flatten observation space for SB3 compatibility
+        # Original: Dict with 'grid', 'params', 'tick'
+        # Flattened: concatenated array [grid_flattened, params, tick]
+        grid_size = env.observation_space['grid'].shape[0] * env.observation_space['grid'].shape[1]
+        params_size = env.observation_space['params'].shape[0]
+        tick_size = env.observation_space['tick'].shape[0]
+        total_size = grid_size + params_size + tick_size
+        
+        self.observation_space = gym.spaces.Box(
+            low=-1, 
+            high=10000, 
+            shape=(total_size,), 
+            dtype=np.float32
+        )
         self.metadata = env.metadata if hasattr(env, 'metadata') else {}
         
-    def reset(self):
-        obs_main, obs_spice = self.env.reset()
-        return obs_main if self.agent_type == 'main' else obs_spice
+    def reset(self, seed=None, options=None):
+        (obs_main, obs_spice), info = self.env.reset(seed=seed, options=options)
+        obs = obs_main if self.agent_type == 'main' else obs_spice
+        return self._flatten_observation(obs), info
+    
+    def _flatten_observation(self, obs_dict):
+        """Flatten dict observation to array for SB3 compatibility."""
+        grid_flat = obs_dict['grid'].flatten().astype(np.float32)
+        params = obs_dict['params'].astype(np.float32)
+        tick = obs_dict['tick'].astype(np.float32)
+        return np.concatenate([grid_flat, params, tick])
     
     def step(self, action):
         # Get action from the other agent
         if self.other_model is not None:
             other_obs = self._get_other_obs()
-            other_action, _ = self.other_model.predict(other_obs, deterministic=False)
+            prediction = self.other_model.predict(other_obs, deterministic=False)
+            other_action = prediction[0]
         else:
             # Random actions if other model not set
             if self.agent_type == 'main':
@@ -65,7 +94,7 @@ class PixelLifeWrapper:
             obs = obs_spice
             reward = r_spice
             
-        return obs, reward, done, info
+        return self._flatten_observation(obs), reward, done, info
     
     def render(self, mode='human'):
         return self.env.render(mode)
@@ -78,17 +107,17 @@ class PixelLifeWrapper:
             return self.env._get_main_observation()
     
     def _convert_main_action(self, action):
-        """Convert main agent's action to pixel actions dict."""
+        """Convert main agent's flattened action to pixel actions dict."""
         pixel_actions = {}
+        
+        # Convert flattened action (0-19) back to (action_type, direction)
+        action_type = action // 4  # 0-4
+        direction = action % 4     # 0-3
         
         # For simplicity, all pixels take the same action initially
         # In a more sophisticated approach, you'd have per-pixel policies
         for coord in self.env.pixel_to_org.keys():
-            if isinstance(action, (list, np.ndarray)) and len(action) >= 2:
-                pixel_actions[coord] = (int(action[0]), int(action[1]))
-            else:
-                # Fallback to no-op
-                pixel_actions[coord] = (0, 0)
+            pixel_actions[coord] = (action_type, direction)
                 
         return pixel_actions
 
@@ -153,7 +182,7 @@ def train_pixel_life(
     # Environment kwargs
     env_kwargs = {'H': 30, 'W': 30, 'max_size': 100}
     
-    # Create vectorized environments
+    # Create vectorized environments for main agent
     print("\nCreating environments...")
     main_vec_env = make_vec_env(
         make_env('main', env_kwargs),
@@ -161,20 +190,22 @@ def train_pixel_life(
         vec_env_cls=DummyVecEnv
     )
     
-    spice_vec_env = make_vec_env(
-        make_env('spice', env_kwargs),
-        n_envs=n_envs,
-        vec_env_cls=DummyVecEnv
-    )
-    
+    # For spice agent, use the raw PixelLifeEnv (not wrapped in Monitor) for DQN
+    spice_env = PixelLifeEnv(**env_kwargs)
+    spice_env.action_space = spice_env.spice_action_space
+    spice_env = PixelLifeWrapper(spice_env, agent_type='spice')
+
+    # Debug: Print action and observation spaces
+    print("\nMain agent action space:", main_vec_env.action_space)
+    print("Main agent observation space:", main_vec_env.observation_space)
+    print("Spice agent action space:", spice_env.action_space)
+    print("Spice agent observation space:", spice_env.observation_space)
+
     # Create eval environments
     eval_main_env = make_vec_env(make_env('main', env_kwargs), n_envs=1)
     eval_spice_env = make_vec_env(make_env('spice', env_kwargs), n_envs=1)
-    
-    # Create PPO agents
-    print("\nCreating PPO agents...")
-    
-    # Main agent (controls pixels)
+
+    # Create PPO agent for main agent (controls pixels)
     main_model = PPO(
         "MlpPolicy",  # Using MLP for now, can switch to MlpLstmPolicy
         main_vec_env,
@@ -187,25 +218,25 @@ def train_pixel_life(
         tensorboard_log=main_dir,
         device=device
     )
-    
-    # Spice agent (adversarial)
-    spice_model = PPO(
+
+    # Create DQN agent for spice agent (adversarial)
+    spice_model = DQN(
         "MlpPolicy",
-        spice_vec_env,
+        spice_env,
         learning_rate=learning_rate,
-        n_steps=n_steps // 2,  # Spice updates less frequently
         batch_size=batch_size,
-        n_epochs=n_epochs,
         gamma=gamma,
         verbose=1,
         tensorboard_log=spice_dir,
         device=device
     )
-    
+
     # Set models in environment wrappers for co-evolution
     for env_idx in range(n_envs):
-        main_vec_env.envs[env_idx].other_model = spice_model
-        spice_vec_env.envs[env_idx].other_model = main_model
+        # Access the wrapped environment inside the Monitor wrapper
+        main_vec_env.envs[env_idx].env.other_model = spice_model
+    # For spice_env, set the main_model as other_model
+    spice_env.env.other_model = main_model
     
     # Callbacks
     main_checkpoint_cb = CheckpointCallback(
