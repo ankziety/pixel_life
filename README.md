@@ -10,6 +10,22 @@ Pixel Life is a competitive multi-agent Gym environment where a main agent contr
 - **Adaptive difficulty**: Spice agent learns to challenge the main agent by tweaking game rules
 - **Reinforcement learning ready**: Compatible with Stable Baselines3 PPO agents
 
+## Project Structure
+
+```
+pixel_life/
+├── env.py                 # Main environment implementation
+├── train.py              # Training script for PPO agents
+├── per_pixel_ai.py       # Per-pixel AI system
+├── continual_learning.py # Continual learning system
+├── basic_renderer.py     # Core rendering functionality
+├── requirements.txt      # Python dependencies
+├── README.md            # This file
+├── demos/               # Demo scripts and examples
+├── tests/               # Test files
+└── logs/                # Training logs and model checkpoints
+```
+
 ## Installation
 
 ### Prerequisites
@@ -31,7 +47,7 @@ pip install -r requirements.txt
 ```
 
 ### Dependencies
-- gym==0.26.2
+- gymnasium>=1.0.0
 - numpy>=1.21.0
 - matplotlib>=3.5.0
 - stable-baselines3>=2.0.0
@@ -39,6 +55,7 @@ pip install -r requirements.txt
 - numba>=0.56.0
 - tensorboard>=2.10.0
 - psutil>=5.9.0
+- pygame>=2.1.0
 
 ## Quick Start
 
@@ -109,10 +126,10 @@ main_model, spice_model, run_dir = train_pixel_life(**hyperparams)
 
 ### Monitor Training
 
-Training logs are saved to `./pixel_life_logs/run_TIMESTAMP/`. You can monitor training with TensorBoard:
+Training logs are saved to `./logs/pixel_life_logs/run_TIMESTAMP/`. You can monitor training with TensorBoard:
 
 ```bash
-tensorboard --logdir ./pixel_life_logs
+tensorboard --logdir ./logs/pixel_life_logs
 ```
 
 ## Loading and Using Checkpoints
@@ -125,8 +142,8 @@ from env import PixelLifeEnv
 from train import PixelLifeWrapper
 
 # Load models
-main_model = PPO.load("./pixel_life_logs/run_20240101_120000/main_agent/final_model")
-spice_model = PPO.load("./pixel_life_logs/run_20240101_120000/spice_agent/final_model")
+main_model = PPO.load("./logs/pixel_life_logs/run_20240101_120000/main_agent/final_model")
+spice_model = PPO.load("./logs/pixel_life_logs/run_20240101_120000/spice_agent/final_model")
 
 # Create environment
 env = PixelLifeEnv(H=30, W=30)
@@ -184,212 +201,32 @@ plt.ioff()
 plt.show()
 ```
 
-### Save rollout as video
+## Demo Scripts
 
-```python
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from env import PixelLifeEnv
+Check out the `demos/` directory for various examples:
 
-# Collect frames
-env = PixelLifeEnv(H=30, W=30)
-frames = []
+- `demo.py` - Basic environment demonstration
+- `demo_ai.py` - AI agent demonstration
+- `demo_per_pixel.py` - Per-pixel AI system demo
+- `demo_continual_learning.py` - Continual learning demo
+- `demo_pygame.py` - Pygame-based visualization
 
-obs = env.reset()
-for step in range(200):
-    # Your actions
-    spice_action = 0
-    pixel_actions = {coord: (1, 0) for coord in env.pixel_to_org.keys()}
-    
-    obs, rewards, done, info = env.step(spice_action, pixel_actions)
-    frames.append(env.grid.copy())
-    
-    if done:
-        break
+## Testing
 
-# Create animation
-fig, ax = plt.subplots()
-im = ax.imshow(frames[0], cmap='viridis')
-
-def animate(i):
-    im.set_array(frames[i])
-    return [im]
-
-anim = animation.FuncAnimation(fig, animate, frames=len(frames), interval=50)
-anim.save('pixel_life_rollout.mp4', writer='ffmpeg')
-```
-
-## Environment Details
-
-### Action Spaces
-
-**Main Agent (Pixels)**:
-- Action per pixel: `(action_type, direction)`
-- `action_type`: 0=no-op, 1=split, 2=consume, 3=combine, 4=forfeit
-- `direction`: 0=up, 1=right, 2=down, 3=left
-
-**Spice Agent**:
-- Single action: 0=no-op, 1=expand_up, 2=expand_down, 3=expand_left, 4=expand_right, 5=tweak_rule
-
-### Observation Space
-
-Both agents receive:
-- `grid`: 2D array where 0=empty, >0=organism ID, -1=dead cell
-- `params`: Current game parameters
-- `tick`: Current timestep
-
-### Rewards
-
-- **Main agent**: `total_living_pixels + 1`
-- **Spice agent**: 
-  - +10 if main agent dies
-  - +1 if main agent loses pixels
-  - -1 if main agent gains pixels
-  - 0 otherwise
-
-### Game Parameters (Tweakable by Spice)
-
-- `split_min_size`: Minimum organism size to split
-- `split_offspring_size`: Size of new organism after split
-- `consume_range`: How far consume can reach
-- `combine_max_distance`: Max distance between organisms to combine
-- `dead_cell_bonus`: Extra pixels gained from consuming dead cells
-- `forfeit_spread`: How many pixels are affected by forfeit
-
-## Performance Optimizations (Phase 6)
-
-### High-Performance Environment
-
-Use the optimized environment for significantly faster training:
-
-```python
-from env_optimized import PixelLifeEnvOptimized
-
-# 3-5x faster than original environment
-env = PixelLifeEnvOptimized(H=50, W=50)
-```
-
-Key optimizations:
-- **Numba JIT compilation** for hot loops
-- **Vectorized operations** for distance calculations
-- **Pre-allocated buffers** to minimize memory allocation
-- **int16 grid** for better cache performance
-- **Performance profiling** built-in
-
-### Vectorized Environments
-
-Run multiple environments in parallel for faster data collection:
-
-```python
-from vec_env import VectorizedPixelLife, AsyncVectorEnv
-
-# Vectorized with shared memory (best for light environments)
-vec_env = VectorizedPixelLife(num_envs=16, H=50, W=50, use_shared_memory=True)
-
-# Async subprocess environments (best for heavy environments)
-env_fns = [lambda: PixelLifeEnvOptimized(H=50, W=50) for _ in range(8)]
-async_env = AsyncVectorEnv(env_fns)
-```
-
-### Asynchronous Training Pipeline
-
-Use the high-throughput training system for maximum performance:
-
-```python
-from train_async import train_async
-
-# Trains at 10,000+ FPS on modern hardware
-train_async(num_workers=8, device='cuda')
-```
-
-Features:
-- **Separate processes** for rollout, inference, and learning
-- **GPU batch inference** with zero CPU-GPU sync overhead
-- **Double-buffered sampling** to eliminate idle time
-- **Shared memory buffers** for fast inter-process communication
-
-### Benchmark Your System
-
-Run comprehensive benchmarks to find optimal settings:
+Run tests from the `tests/` directory:
 
 ```bash
-python benchmark_optimizations.py
+python tests/test_env.py
 ```
-
-This will:
-- Compare original vs optimized environment speed
-- Test different vectorization strategies
-- Profile memory usage
-- Identify performance bottlenecks
-- Generate performance plots
-
-### Performance Tips
-
-1. **For maximum FPS**: Use AsyncVectorEnv with multiple workers
-2. **For memory efficiency**: Use VectorizedPixelLife with shared memory
-3. **Mixed approach**: Multiple async workers each running vectorized envs
-4. **GPU utilization**: Batch size of 256-512 for training
-5. **CPU cores**: Set workers = CPU cores for best throughput
-
-Example performance on 36-core CPU + RTX 2080 Ti:
-- Single environment: ~5,000 FPS
-- 16 vectorized envs: ~40,000 FPS total
-- 8 async workers: ~80,000 FPS total
-- Full async pipeline: ~100,000+ FPS
-
-## Advanced Usage
-
-### Custom Environment Configuration
-
-```python
-env = PixelLifeEnv(
-    H=50,           # Initial height
-    W=50,           # Initial width  
-    max_size=200    # Maximum dimension after expansions
-)
-```
-
-### Implement Per-Pixel Policies
-
-For more sophisticated control, implement a policy network that outputs actions for each pixel individually:
-
-```python
-class PerPixelPolicy(nn.Module):
-    def __init__(self, obs_dim, hidden_dim=64):
-        super().__init__()
-        self.net = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, 5 + 4)  # 5 action types + 4 directions
-        )
-    
-    def forward(self, local_obs):
-        # local_obs: observation around a single pixel
-        logits = self.net(local_obs)
-        action_logits = logits[:5]
-        direction_logits = logits[5:]
-        return action_logits, direction_logits
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **ImportError with gym**: Make sure you're using gym==0.26.2
-2. **CUDA out of memory**: Reduce `n_envs` or use CPU
-3. **Training too slow**: Reduce `n_steps` or use fewer environments
-4. **Matplotlib backend issues**: Set backend explicitly:
-   ```python
-   import matplotlib
-   matplotlib.use('Agg')  # For non-interactive
-   ```
 
 ## Contributing
 
-Feel free to submit issues, fork the repository, and create pull requests for any improvements.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
-This project is provided as-is for educational and research purposes.
+This project is open source and available under the MIT License.
