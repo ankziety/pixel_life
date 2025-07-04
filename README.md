@@ -14,7 +14,8 @@ Pixel Life is a competitive multi-agent Gym environment where a main agent contr
 
 ```
 pixel_life/
-├── env.py                 # Main environment implementation
+├── pixel_life.py         # Unified command-line interface
+├── env.py                # Main environment implementation
 ├── train.py              # Training script for PPO agents
 ├── per_pixel_ai.py       # Per-pixel AI system
 ├── continual_learning.py # Continual learning system
@@ -59,7 +60,63 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-### Test the environment
+### Unified Command Line Interface
+
+The easiest way to run Pixel Life is using the unified CLI tool:
+
+```bash
+# Basic environment demonstration
+python pixel_life.py basic --render
+
+# AI agent demonstration
+python pixel_life.py ai --render
+
+# Per-pixel AI system
+python pixel_life.py per-pixel --train --render
+
+# Continual learning system
+python pixel_life.py continual --train --render
+
+# Pygame visualization
+python pixel_life.py pygame
+
+# Full training session
+python pixel_life.py train --timesteps 100000
+
+# Model evaluation
+python pixel_life.py evaluate --model-path ./logs/training_run_20240101_120000/main_agent/final_model
+```
+
+### Available Modes
+
+- **`basic`**: Simple environment demonstration with random actions
+- **`ai`**: AI agent demonstration with quick training
+- **`per-pixel`**: Per-pixel AI system where each pixel has its own agent
+- **`continual`**: Continual learning system that adapts over time
+- **`pygame`**: Pygame-based visualization
+- **`train`**: Full training session with customizable parameters
+- **`evaluate`**: Evaluate trained models
+
+### Command Line Options
+
+Each mode supports various options. For example:
+
+```bash
+# Run with custom parameters
+python pixel_life.py basic --size 50 --steps 500 --render
+
+# Train with specific settings
+python pixel_life.py train --size 40 --timesteps 500000 --n-envs 8 --device cuda
+
+# Run per-pixel AI with training
+python pixel_life.py per-pixel --train --generations 10 --steps 300 --render
+```
+
+Run `python pixel_life.py <mode> --help` for mode-specific options.
+
+### Programmatic Usage
+
+You can also use the environment programmatically:
 
 ```python
 from env import PixelLifeEnv
