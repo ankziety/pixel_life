@@ -103,9 +103,10 @@ class PixelLifeWrapper(gym.Env):
     def _get_other_obs(self):
         """Get observation for the other agent."""
         if self.agent_type == 'main':
-            return self.env._get_spice_observation()
+            obs_dict = self.env._get_spice_observation()
         else:
-            return self.env._get_main_observation()
+            obs_dict = self.env._get_main_observation()
+        return self._flatten_observation(obs_dict)
     
     def _convert_main_action(self, action):
         """Convert main agent's flattened action to pixel actions dict."""
@@ -194,7 +195,6 @@ def train_pixel_life(
     
     # For spice agent, use the raw PixelLifeEnv (not wrapped in Monitor) for DQN
     spice_env = PixelLifeEnv(**env_kwargs)
-    spice_env.action_space = spice_env.spice_action_space
     spice_env = PixelLifeWrapper(spice_env, agent_type='spice')
 
     # Debug: Print action and observation spaces
@@ -238,7 +238,7 @@ def train_pixel_life(
         # Access the wrapped environment inside the Monitor wrapper
         main_vec_env.envs[env_idx].env.other_model = spice_model
     # For spice_env, set the main_model as other_model
-    spice_env.env.other_model = main_model
+    spice_env.other_model = main_model
     
     # Callbacks
     main_checkpoint_cb = CheckpointCallback(
@@ -286,31 +286,29 @@ def train_pixel_life(
         if (update + 1) % (eval_freq // steps_per_update) == 0:
             print("\n  Evaluating agents...")
             eval_env = PixelLifeEnv(**env_kwargs)
+            eval_wrapped = PixelLifeWrapper(eval_env, agent_type='spice')
             
-            obs = eval_env.reset()
+            obs, _ = eval_wrapped.reset()
             total_main_reward = 0
             total_spice_reward = 0
             
             for eval_step in range(100):
-                # Get actions from both models
-                main_obs = obs[0]
-                spice_obs = obs[1]
-                
-                spice_action, _ = spice_model.predict(spice_obs, deterministic=True)
+                # Get actions from spice model
+                spice_action, _ = spice_model.predict(obs, deterministic=True)
                 
                 # Simple pixel actions for evaluation
                 pixel_actions = {}
                 for coord in eval_env.pixel_to_org.keys():
                     pixel_actions[coord] = (1, eval_step % 4)  # Split in different directions
                 
-                obs, rewards, done, _ = eval_env.step(int(spice_action), pixel_actions)
-                total_main_reward += rewards[0]
-                total_spice_reward += rewards[1]
+                # Convert spice action and step
+                obs, reward, done, info = eval_wrapped.step(int(spice_action))
+                total_spice_reward += reward
                 
                 if done:
                     break
             
-            print(f"    Eval rewards - Main: {total_main_reward:.1f}, Spice: {total_spice_reward:.1f}")
+            print(f"    Eval rewards - Spice: {total_spice_reward:.1f}")
             print(f"    Episode length: {eval_step + 1}")
     
     # Save final models
@@ -394,11 +392,11 @@ if __name__ == "__main__":
         # Quick test of trained models
         print("\nTesting trained models...")
         env = PixelLifeEnv(H=30, W=30)
-        obs = env.reset()
+        test_wrapped = PixelLifeWrapper(env, agent_type='spice')
+        obs, _ = test_wrapped.reset()
         
         for step in range(50):
-            main_obs, spice_obs = obs
-            spice_action, _ = spice_model.predict(spice_obs, deterministic=True)
+            spice_action, _ = spice_model.predict(obs, deterministic=True)
             
             # Get pixel actions (simplified for now)
             pixel_actions = {}
@@ -406,7 +404,7 @@ if __name__ == "__main__":
                 # In a full implementation, you'd predict per-pixel actions
                 pixel_actions[coord] = (1, step % 4)
             
-            obs, rewards, done, info = env.step(int(spice_action), pixel_actions)
+            obs, reward, done, info = test_wrapped.step(int(spice_action))
             
             if step % 10 == 0:
                 print(f"Step {step}: Organisms={info['organisms']}, Pixels={info['live_pixels']}")
