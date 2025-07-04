@@ -20,6 +20,7 @@ from train import train_pixel_life, PixelLifeWrapper, make_env
 from per_pixel_ai import PerPixelAISystem, PerPixelObservationWrapper
 from continual_learning import ContinualLearningSystem
 from basic_renderer import PixelLifeRenderer
+from enhanced_renderer import EnhancedPixelLifeRenderer
 from stable_baselines3 import PPO, DQN
 
 
@@ -189,6 +190,36 @@ def run_pygame_demo(args):
     print(f"Final state: {len(env.live_pixels)} pixels alive")
 
 
+def run_enhanced_demo(args):
+    """Run Enhanced Pygame-based visualization demo with zoom and resizable window."""
+    print("Running Enhanced Pygame Demo")
+    print("=" * 40)
+    
+    try:
+        import pygame
+    except ImportError:
+        print("Pygame not installed. Install with: pip install pygame")
+        return
+    
+    env = PixelLifeEnv(H=args.size, W=args.size)
+    
+    # Reset environment first to initialize the grid
+    obs = env.reset()
+    
+    renderer = EnhancedPixelLifeRenderer(
+        env=env,
+        width=1400,
+        height=900,
+        initial_zoom=args.initial_zoom
+    )
+    
+    print(f"Enhanced renderer started with {args.initial_zoom}x zoom")
+    print("Controls: Mouse wheel zoom, middle drag pan, F fullscreen, R reset view")
+    
+    # Run the enhanced renderer
+    renderer.run_with_env()
+
+
 def run_training(args):
     """Run full training session."""
     print("Running Full Training Session")
@@ -326,6 +357,12 @@ def main():
     pygame_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
     pygame_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
     pygame_parser.set_defaults(func=run_pygame_demo)
+    
+    # Enhanced pygame demo parser
+    enhanced_parser = subparsers.add_parser('enhanced', help='Enhanced Pygame visualization with zoom and resizable window')
+    enhanced_parser.add_argument('--size', type=int, default=100, help='Environment size (default: 100)')
+    enhanced_parser.add_argument('--initial-zoom', type=float, default=0.01, help='Initial zoom level (default: 0.01 = 100x smaller pixels)')
+    enhanced_parser.set_defaults(func=run_enhanced_demo)
     
     # Training parser
     train_parser = subparsers.add_parser('train', help='Full training session')
