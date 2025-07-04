@@ -5,6 +5,7 @@ import sys
 import time
 import numpy as np
 from datetime import datetime
+import argparse
 
 import gymnasium as gym
 import torch
@@ -147,6 +148,7 @@ def train_pixel_life(
     eval_freq=5000,
     device='cpu',
     log_dir='./logs',
+    no_tensorboard=False,
 ):
     """Train both main and spice agents in the Pixel Life environment.
     
@@ -215,7 +217,7 @@ def train_pixel_life(
         n_epochs=n_epochs,
         gamma=gamma,
         verbose=1,
-        tensorboard_log=main_dir,
+        tensorboard_log=None if no_tensorboard else main_dir,
         device=device
     )
 
@@ -227,7 +229,7 @@ def train_pixel_life(
         batch_size=batch_size,
         gamma=gamma,
         verbose=1,
-        tensorboard_log=spice_dir,
+        tensorboard_log=None if no_tensorboard else spice_dir,
         device=device
     )
 
@@ -321,23 +323,61 @@ def train_pixel_life(
     return main_model, spice_model, run_dir
 
 
-if __name__ == "__main__":
-    # Check if CUDA is available
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='Train RL agents in Pixel Life environment')
     
-    # Hyperparameters
+    parser.add_argument('--total-timesteps', type=int, default=100_000,
+                        help='Total training timesteps (default: 100,000)')
+    parser.add_argument('--n-envs', type=int, default=2,
+                        help='Number of parallel environments (default: 2)')
+    parser.add_argument('--learning-rate', type=float, default=3e-4,
+                        help='Learning rate (default: 3e-4)')
+    parser.add_argument('--n-steps', type=int, default=1024,
+                        help='Number of steps per environment per update (default: 1024)')
+    parser.add_argument('--batch-size', type=int, default=64,
+                        help='Batch size for training (default: 64)')
+    parser.add_argument('--n-epochs', type=int, default=10,
+                        help='Number of epochs for PPO (default: 10)')
+    parser.add_argument('--gamma', type=float, default=0.99,
+                        help='Discount factor (default: 0.99)')
+    parser.add_argument('--checkpoint-freq', type=int, default=10000,
+                        help='Save checkpoint every N steps (default: 10000)')
+    parser.add_argument('--eval-freq', type=int, default=5000,
+                        help='Evaluate every N steps (default: 5000)')
+    parser.add_argument('--log-dir', type=str, default='./pixel_life_logs',
+                        help='Directory for logs and checkpoints (default: ./pixel_life_logs)')
+    parser.add_argument('--no-tensorboard', action='store_true',
+                        help='Disable tensorboard logging')
+    parser.add_argument('--cpu', action='store_true',
+                        help='Force CPU usage (default: auto-detect GPU)')
+    
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    
+    # Check if CUDA is available
+    if args.cpu:
+        device = 'cpu'
+    else:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    # Hyperparameters from args
     hyperparams = {
-        'total_timesteps': 100_000,  # Reduced for testing
-        'n_envs': 2,  # Reduced for CPU
-        'learning_rate': 3e-4,
-        'n_steps': 1024,
-        'batch_size': 64,
-        'n_epochs': 10,
-        'gamma': 0.99,
-        'checkpoint_freq': 10000,
-        'eval_freq': 5000,
+        'total_timesteps': args.total_timesteps,
+        'n_envs': args.n_envs,
+        'learning_rate': args.learning_rate,
+        'n_steps': args.n_steps,
+        'batch_size': args.batch_size,
+        'n_epochs': args.n_epochs,
+        'gamma': args.gamma,
+        'checkpoint_freq': args.checkpoint_freq,
+        'eval_freq': args.eval_freq,
         'device': device,
-        'log_dir': './pixel_life_logs'
+        'log_dir': args.log_dir,
+        'no_tensorboard': args.no_tensorboard
     }
     
     print("Pixel Life RL Training")
