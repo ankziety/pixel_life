@@ -24,13 +24,28 @@ from basic_renderer import PixelLifeRenderer
 from enhanced_renderer import EnhancedPixelLifeRenderer
 from stable_baselines3 import PPO, DQN
 
+# Apple Silicon acceleration imports
+try:
+    from apple_acceleration import create_accelerated_env, benchmark_acceleration
+    from accelerated_training import train_accelerated_pixel_life, train_custom_model
+    from accelerated_renderer import create_renderer, BenchmarkRenderer
+    APPLE_ACCELERATION_AVAILABLE = True
+except ImportError:
+    APPLE_ACCELERATION_AVAILABLE = False
+    print("⚠️  Apple Silicon acceleration not available. Install required packages.")
+
 
 def run_basic_demo(args):
     """Run basic environment demonstration."""
     print("Running Basic Environment Demo")
     print("=" * 40)
     
-    env = PixelLifeEnv(H=args.size, W=args.size)
+    # Use accelerated environment if requested
+    if hasattr(args, 'accelerated') and args.accelerated and APPLE_ACCELERATION_AVAILABLE:
+        print("🚀 Using Apple Silicon acceleration")
+        env = create_accelerated_env(H=args.size, W=args.size)
+    else:
+        env = PixelLifeEnv(H=args.size, W=args.size)
     obs = env.reset()
     
     total_steps = args.steps
@@ -69,7 +84,12 @@ def run_ai_demo(args):
     print("Running AI Agent Demo")
     print("=" * 40)
     
-    env = PixelLifeEnv(H=args.size, W=args.size)
+    # Use accelerated environment if requested
+    if hasattr(args, 'accelerated') and args.accelerated and APPLE_ACCELERATION_AVAILABLE:
+        print("🚀 Using Apple Silicon acceleration")
+        env = create_accelerated_env(H=args.size, W=args.size)
+    else:
+        env = PixelLifeEnv(H=args.size, W=args.size)
     renderer = PixelLifeRenderer(env)
     
     # Create simple AI models
@@ -165,7 +185,12 @@ def run_pygame_demo(args):
     renderer = PixelLifeRenderer(env)
     
     obs = env.reset()
-    clock = pygame.time.Clock()
+    try:
+        import pygame
+        clock = pygame.time.Clock()
+    except ImportError:
+        print("Pygame not available for rendering")
+        return
     
     for step in range(args.steps):
         # Random actions
@@ -190,6 +215,66 @@ def run_pygame_demo(args):
     
     print(f"Final state: {len(env.live_pixels)} pixels alive")
 
+
+def run_accelerated_demo(args):
+    """Run Apple Silicon accelerated demo."""
+    if not APPLE_ACCELERATION_AVAILABLE:
+        print("❌ Apple Silicon acceleration not available")
+        print("Install required packages: pip install torch-mps coremltools")
+        return
+    
+    print("Running Apple Silicon Accelerated Demo")
+    print("=" * 40)
+    
+    # Create accelerated environment
+    env = create_accelerated_env(H=args.size, W=args.size)
+    
+    # Create accelerated renderer
+    renderer = create_renderer(env, window_size=(800, 600), cell_size=8)
+    
+    obs = env.reset()
+    clock = pygame.time.Clock()
+    
+    for step in range(args.steps):
+        # Random actions
+        pixel_actions = {}
+        for coord in env.live_pixels:
+            action_type = np.random.randint(0, 4)
+            direction = np.random.randint(0, 4)
+            pixel_actions[coord] = (action_type, direction)
+        
+        obs, rewards, done, truncated, info = env.step(0, pixel_actions)
+        
+        if step % 20 == 0:
+            print(f"Step {step:3d}: Pixels={len(env.live_pixels):2d}")
+        
+        renderer.render()
+        if 'clock' in locals():
+            clock.tick(30)  # 30 FPS
+        
+        if done:
+            print(f"Episode ended at step {step}")
+            break
+    
+    print(f"Final state: {len(env.live_pixels)} pixels alive")
+
+def run_benchmark_demo(args):
+    """Run performance benchmark demo."""
+    if not APPLE_ACCELERATION_AVAILABLE:
+        print("❌ Apple Silicon acceleration not available")
+        return
+    
+    print("Running Performance Benchmark Demo")
+    print("=" * 40)
+    
+    # Benchmark environment acceleration
+    print("🏃‍♂️ Benchmarking environment acceleration...")
+    benchmark_acceleration(env_size=args.size, steps=1000)
+    
+    # Benchmark rendering
+    print("\n🎨 Benchmarking rendering acceleration...")
+    benchmark = BenchmarkRenderer(env_size=args.size)
+    benchmark.benchmark_rendering(frames=500)
 
 def run_enhanced_demo(args):
     """Run Enhanced Pygame-based visualization demo with zoom and resizable window."""
@@ -244,8 +329,15 @@ def run_training(args):
         'no_tensorboard': args.no_tensorboard,
     }
     
-    # Run training
-    main_model, spice_model, run_dir = train_pixel_life(**hyperparams)
+    # Use accelerated training if requested
+    if hasattr(args, 'accelerated') and args.accelerated and APPLE_ACCELERATION_AVAILABLE:
+        print("🚀 Using Apple Silicon accelerated training")
+        from accelerated_training import train_accelerated_pixel_life
+        main_model, spice_model = train_accelerated_pixel_life(**hyperparams)
+        run_dir = log_dir
+    else:
+        # Run standard training
+        main_model, spice_model, run_dir = train_pixel_life(**hyperparams)
     
     print(f"\nTraining complete!")
     print(f"Models saved to: {run_dir}")
@@ -443,6 +535,8 @@ def main():
     basic_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
     basic_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
     basic_parser.add_argument('--render', action='store_true', help='Enable rendering')
+    if APPLE_ACCELERATION_AVAILABLE:
+        basic_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
     basic_parser.set_defaults(func=run_basic_demo)
     
     # AI demo parser
@@ -450,6 +544,8 @@ def main():
     ai_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
     ai_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
     ai_parser.add_argument('--render', action='store_true', help='Enable rendering')
+    if APPLE_ACCELERATION_AVAILABLE:
+        ai_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
     ai_parser.set_defaults(func=run_ai_demo)
     
     # Per-pixel demo parser
@@ -484,6 +580,18 @@ def main():
     enhanced_parser.add_argument('--initial-zoom', type=float, default=0.01, help='Initial zoom level (default: 0.01 = 100x smaller pixels)')
     enhanced_parser.set_defaults(func=run_enhanced_demo)
     
+    # Accelerated demo parser (Apple Silicon)
+    if APPLE_ACCELERATION_AVAILABLE:
+        accelerated_parser = subparsers.add_parser('accelerated', help='Apple Silicon accelerated demo')
+        accelerated_parser.add_argument('--size', type=int, default=50, help='Environment size (default: 50)')
+        accelerated_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
+        accelerated_parser.set_defaults(func=run_accelerated_demo)
+        
+        # Benchmark demo parser
+        benchmark_demo_parser = subparsers.add_parser('benchmark-demo', help='Performance benchmark demo')
+        benchmark_demo_parser.add_argument('--size', type=int, default=50, help='Environment size (default: 50)')
+        benchmark_demo_parser.set_defaults(func=run_benchmark_demo)
+    
     # Training parser
     train_parser = subparsers.add_parser('train', help='Full training session')
     train_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
@@ -494,8 +602,10 @@ def main():
     train_parser.add_argument('--batch-size', type=int, default=64, help='Batch size (default: 64)')
     train_parser.add_argument('--n-epochs', type=int, default=10, help='Number of epochs (default: 10)')
     train_parser.add_argument('--gamma', type=float, default=0.99, help='Discount factor (default: 0.99)')
-    train_parser.add_argument('--device', choices=['cpu', 'cuda'], default='cpu', help='Device (default: cpu)')
+    train_parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default='cpu', help='Device (default: cpu)')
     train_parser.add_argument('--no-tensorboard', action='store_true', help='Disable TensorBoard logging')
+    if APPLE_ACCELERATION_AVAILABLE:
+        train_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
     train_parser.set_defaults(func=run_training)
     
     # Evaluation parser
