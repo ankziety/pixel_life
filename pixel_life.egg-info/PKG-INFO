@@ -1,3 +1,37 @@
+Metadata-Version: 2.4
+Name: pixel_life
+Version: 1.0.0
+Summary: A 2D Artificial Life Environment with AI agents
+Author: Pixel Life Team
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Science/Research
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: gymnasium>=1.0.0
+Requires-Dist: numpy>=1.21.0
+Requires-Dist: matplotlib>=3.5.0
+Requires-Dist: stable-baselines3>=2.0.0
+Requires-Dist: torch>=1.12.0
+Requires-Dist: numba>=0.56.0
+Requires-Dist: tensorboard>=2.10.0
+Requires-Dist: psutil>=5.9.0
+Requires-Dist: pygame>=2.1.0
+Dynamic: author
+Dynamic: classifier
+Dynamic: description
+Dynamic: description-content-type
+Dynamic: requires-dist
+Dynamic: requires-python
+Dynamic: summary
+
 # Pixel Life: A 2D Artificial Life Environment
 
 Pixel Life is a competitive multi-agent Gym environment where a main agent controls pixel organisms that can split, consume, combine, and forfeit, while an adversarial "spice" agent tries to make survival difficult by expanding the universe and tweaking game parameters.

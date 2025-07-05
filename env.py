@@ -67,6 +67,10 @@ class PixelLifeEnv(gym.Env):
         #                3=expand_left, 4=expand_right, 5=tweak_rule
         self.spice_action_space = spaces.Discrete(6)
         
+        # Main action space (for compatibility with gym interfaces)
+        # 20 possible actions: 5 action types * 4 directions
+        self.action_space = spaces.Discrete(20)
+        
         # Observation space
         # Main agent sees local views, spice sees global view
         self.observation_space = spaces.Dict({
@@ -245,7 +249,7 @@ class PixelLifeEnv(gym.Env):
             'avg_age': np.mean(list(self.pixel_ages.values())) if self.pixel_ages else 0
         }
         
-        return (obs_main, obs_spice), (reward_main, reward_spice), self.done, info
+        return (obs_main, obs_spice), (reward_main, reward_spice), self.done, False, info
     
     def render(self, mode='human'):
         """Visualize current state using matplotlib."""

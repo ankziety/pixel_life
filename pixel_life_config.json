@@ -1,0 +1,24 @@
+{
+  "environment": {
+    "size": 30,
+    "max_pixels": 100000,
+    "spice_expansion_rate": 0.1
+  },
+  "training": {
+    "total_timesteps": 1000000,
+    "n_envs": 4,
+    "learning_rate": 0.0003,
+    "n_steps": 2048,
+    "batch_size": 64,
+    "n_epochs": 10,
+    "gamma": 0.99
+  },
+  "rendering": {
+    "enable": true,
+    "fps": 120,
+    "window_size": [
+      1200,
+      800
+    ]
+  }
+}

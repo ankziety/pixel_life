@@ -1,0 +1,13 @@
+README.md
+pixel_life.py
+setup.py
+pixel_life.egg-info/PKG-INFO
+pixel_life.egg-info/SOURCES.txt
+pixel_life.egg-info/dependency_links.txt
+pixel_life.egg-info/entry_points.txt
+pixel_life.egg-info/not-zip-safe
+pixel_life.egg-info/requires.txt
+pixel_life.egg-info/top_level.txt
+tests/test_env.py
+tests/test_optimizations.py
+tests/test_renderer.py
