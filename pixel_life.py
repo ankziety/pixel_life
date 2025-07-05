@@ -1149,262 +1149,262 @@ def main():
     subparsers = parser.add_subparsers(dest='mode', help='Available modes')
     
     # Basic demo parser
-    basic_parser = subparsers.add_parser('basic', help='Basic environment demonstration')
-    basic_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    basic_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
-    basic_parser.add_argument('--render', action='store_true', help='Enable rendering')
+    basic_parser = subparsers.add_parser('basic', help='Basic environment demonstration with random actions')
+    basic_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    basic_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
+    basic_parser.add_argument('--render', action='store_true', help='Enable visual rendering of the environment during simulation')
     if APPLE_ACCELERATION_AVAILABLE:
-        basic_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
+        basic_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration for improved performance')
     basic_parser.set_defaults(func=run_basic_demo)
     
     # AI demo parser
-    ai_parser = subparsers.add_parser('ai', help='AI agent demonstration')
-    ai_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    ai_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
-    ai_parser.add_argument('--render', action='store_true', help='Enable rendering')
+    ai_parser = subparsers.add_parser('ai', help='AI agent demonstration with trained reinforcement learning models')
+    ai_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    ai_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
+    ai_parser.add_argument('--render', action='store_true', help='Enable visual rendering of the environment during simulation')
     if APPLE_ACCELERATION_AVAILABLE:
-        ai_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
+        ai_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration for improved performance')
     ai_parser.set_defaults(func=run_ai_demo)
     
     # Per-pixel demo parser
-    per_pixel_parser = subparsers.add_parser('per-pixel', help='Per-pixel AI system demonstration')
-    per_pixel_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    per_pixel_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
-    per_pixel_parser.add_argument('--render', action='store_true', help='Enable rendering')
-    per_pixel_parser.add_argument('--train', action='store_true', help='Train the system first')
-    per_pixel_parser.add_argument('--generations', type=int, default=5, help='Number of generations (default: 5)')
-    per_pixel_parser.add_argument('--steps-per-gen', type=int, default=1000, help='Steps per generation (default: 1000)')
+    per_pixel_parser = subparsers.add_parser('per-pixel', help='Per-pixel AI system demonstration with individual pixel intelligence')
+    per_pixel_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    per_pixel_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
+    per_pixel_parser.add_argument('--render', action='store_true', help='Enable visual rendering of the environment during simulation')
+    per_pixel_parser.add_argument('--train', action='store_true', help='Train the per-pixel AI system before running the demo')
+    per_pixel_parser.add_argument('--generations', type=int, default=5, help='Number of training generations for the AI system (default: 5)')
+    per_pixel_parser.add_argument('--steps-per-gen', type=int, default=1000, help='Number of steps per training generation (default: 1000)')
     per_pixel_parser.set_defaults(func=run_per_pixel_demo)
     
     # Continual learning demo parser
-    cl_parser = subparsers.add_parser('continual', help='Continual learning demonstration')
-    cl_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    cl_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
-    cl_parser.add_argument('--render', action='store_true', help='Enable rendering')
-    cl_parser.add_argument('--train', action='store_true', help='Train the system first')
-    cl_parser.add_argument('--episodes', type=int, default=10, help='Number of episodes (default: 10)')
-    cl_parser.add_argument('--steps-per-episode', type=int, default=500, help='Steps per episode (default: 500)')
+    cl_parser = subparsers.add_parser('continual', help='Continual learning demonstration with adaptive AI systems')
+    cl_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    cl_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
+    cl_parser.add_argument('--render', action='store_true', help='Enable visual rendering of the environment during simulation')
+    cl_parser.add_argument('--train', action='store_true', help='Train the continual learning system before running the demo')
+    cl_parser.add_argument('--episodes', type=int, default=10, help='Number of training episodes for the continual learning system (default: 10)')
+    cl_parser.add_argument('--steps-per-episode', type=int, default=500, help='Number of steps per training episode (default: 500)')
     cl_parser.set_defaults(func=run_continual_learning_demo)
     
     # Pygame demo parser
-    pygame_parser = subparsers.add_parser('pygame', help='Pygame-based visualization')
-    pygame_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    pygame_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
+    pygame_parser = subparsers.add_parser('pygame', help='Pygame-based real-time visualization with interactive window')
+    pygame_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    pygame_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
     pygame_parser.set_defaults(func=run_pygame_demo)
     
     # Enhanced pygame demo parser
-    enhanced_parser = subparsers.add_parser('enhanced', help='Enhanced Pygame visualization with zoom and resizable window')
-    enhanced_parser.add_argument('--size', type=int, default=100, help='Environment size (default: 100)')
-    enhanced_parser.add_argument('--initial-zoom', type=float, default=0.01, help='Initial zoom level (default: 0.01 = 100x smaller pixels)')
+    enhanced_parser = subparsers.add_parser('enhanced', help='Enhanced Pygame visualization with zoom, pan, and resizable window controls')
+    enhanced_parser.add_argument('--size', type=int, default=100, help='The size of the environment grid in pixels (default: 100)')
+    enhanced_parser.add_argument('--initial-zoom', type=float, default=0.01, help='Initial zoom level where 0.01 = 100x smaller pixels (default: 0.01)')
     enhanced_parser.set_defaults(func=run_enhanced_demo)
     
     # Accelerated demo parser (Apple Silicon)
     if APPLE_ACCELERATION_AVAILABLE:
-        accelerated_parser = subparsers.add_parser('accelerated', help='Apple Silicon accelerated demo')
-        accelerated_parser.add_argument('--size', type=int, default=50, help='Environment size (default: 50)')
-        accelerated_parser.add_argument('--steps', type=int, default=200, help='Number of steps (default: 200)')
+        accelerated_parser = subparsers.add_parser('accelerated', help='Apple Silicon accelerated demo with Metal Performance Shaders')
+        accelerated_parser.add_argument('--size', type=int, default=50, help='The size of the environment grid in pixels (default: 50)')
+        accelerated_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
         accelerated_parser.set_defaults(func=run_accelerated_demo)
         
         # Benchmark demo parser
-        benchmark_demo_parser = subparsers.add_parser('benchmark-demo', help='Performance benchmark demo')
-        benchmark_demo_parser.add_argument('--size', type=int, default=50, help='Environment size (default: 50)')
+        benchmark_demo_parser = subparsers.add_parser('benchmark-demo', help='Performance benchmark demo comparing standard vs accelerated performance')
+        benchmark_demo_parser.add_argument('--size', type=int, default=50, help='The size of the environment grid in pixels for benchmarking (default: 50)')
         benchmark_demo_parser.set_defaults(func=run_benchmark_demo)
     
     # Training parser
-    train_parser = subparsers.add_parser('train', help='Full training session')
-    train_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    train_parser.add_argument('--timesteps', type=int, default=1000000, help='Total timesteps (default: 1000000)')
-    train_parser.add_argument('--n-envs', type=int, default=4, help='Number of parallel environments (default: 4)')
-    train_parser.add_argument('--learning-rate', type=float, default=3e-4, help='Learning rate (default: 3e-4)')
-    train_parser.add_argument('--n-steps', type=int, default=2048, help='Steps before update (default: 2048)')
-    train_parser.add_argument('--batch-size', type=int, default=64, help='Batch size (default: 64)')
-    train_parser.add_argument('--n-epochs', type=int, default=10, help='Number of epochs (default: 10)')
-    train_parser.add_argument('--gamma', type=float, default=0.99, help='Discount factor (default: 0.99)')
-    train_parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default='cpu', help='Device (default: cpu)')
-    train_parser.add_argument('--no-tensorboard', action='store_true', help='Disable TensorBoard logging')
+    train_parser = subparsers.add_parser('train', help='Full reinforcement learning training session with PPO algorithm')
+    train_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    train_parser.add_argument('--timesteps', type=int, default=1000000, help='Total number of timesteps for training (default: 1000000)')
+    train_parser.add_argument('--n-envs', type=int, default=4, help='Number of parallel environments for training (default: 4)')
+    train_parser.add_argument('--learning-rate', type=float, default=3e-4, help='Learning rate for the neural network optimizer (default: 3e-4)')
+    train_parser.add_argument('--n-steps', type=int, default=2048, help='Number of steps to run before updating the policy (default: 2048)')
+    train_parser.add_argument('--batch-size', type=int, default=64, help='Batch size for neural network training (default: 64)')
+    train_parser.add_argument('--n-epochs', type=int, default=10, help='Number of epochs per policy update (default: 10)')
+    train_parser.add_argument('--gamma', type=float, default=0.99, help='Discount factor for future rewards (default: 0.99)')
+    train_parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default='cpu', help='Computing device to use for training (default: cpu)')
+    train_parser.add_argument('--no-tensorboard', action='store_true', help='Disable TensorBoard logging and visualization')
     if APPLE_ACCELERATION_AVAILABLE:
-        train_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration')
+        train_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration for improved training performance')
     train_parser.set_defaults(func=run_training)
     
     # Evaluation parser
-    eval_parser = subparsers.add_parser('evaluate', help='Model evaluation')
-    eval_parser.add_argument('--model-path', type=str, required=True, help='Path to trained model')
-    eval_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    eval_parser.add_argument('--episodes', type=int, default=10, help='Number of evaluation episodes (default: 10)')
-    eval_parser.add_argument('--steps', type=int, default=500, help='Steps per episode (default: 500)')
-    eval_parser.add_argument('--render', action='store_true', help='Enable rendering')
+    eval_parser = subparsers.add_parser('evaluate', help='Evaluate trained reinforcement learning models')
+    eval_parser.add_argument('--model-path', type=str, required=True, help='Path to the trained model file (e.g., model.zip)')
+    eval_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
+    eval_parser.add_argument('--episodes', type=int, default=10, help='Number of evaluation episodes to run (default: 10)')
+    eval_parser.add_argument('--steps', type=int, default=500, help='Number of steps per evaluation episode (default: 500)')
+    eval_parser.add_argument('--render', action='store_true', help='Enable visual rendering during evaluation')
     eval_parser.set_defaults(func=run_evaluation)
     
     # Info parser
-    info_parser = subparsers.add_parser('info', help='Display system information')
-    info_parser.add_argument('--size', type=int, default=30, help='Environment size for testing (default: 30)')
+    info_parser = subparsers.add_parser('info', help='Display comprehensive system information and environment details')
+    info_parser.add_argument('--size', type=int, default=30, help='Environment size for testing system capabilities (default: 30)')
     info_parser.set_defaults(func=run_info)
     
     # Benchmark parser
-    benchmark_parser = subparsers.add_parser('benchmark', help='Run performance benchmark')
-    benchmark_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    benchmark_parser.add_argument('--steps', type=int, default=10000, help='Number of steps to benchmark (default: 10000)')
+    benchmark_parser = subparsers.add_parser('benchmark', help='Run comprehensive performance benchmark tests')
+    benchmark_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels for benchmarking (default: 30)')
+    benchmark_parser.add_argument('--steps', type=int, default=10000, help='Number of simulation steps to run for performance measurement (default: 10000)')
     benchmark_parser.set_defaults(func=run_benchmark)
     
     # Config parser
-    config_parser = subparsers.add_parser('config', help='Configuration management')
-    config_parser.add_argument('--generate', action='store_true', help='Generate default config file')
-    config_parser.add_argument('--load', type=str, help='Load and display config file')
+    config_parser = subparsers.add_parser('config', help='Configuration file management and settings')
+    config_parser.add_argument('--generate', action='store_true', help='Generate a default configuration file with recommended settings')
+    config_parser.add_argument('--load', type=str, help='Load and display the contents of a specific configuration file')
     config_parser.set_defaults(func=run_config)
     
     # Logs management parser
-    logs_parser = subparsers.add_parser('logs', help='Log management and inspection')
-    logs_subparsers = logs_parser.add_subparsers(dest='logs_cmd', help='Log commands')
+    logs_parser = subparsers.add_parser('logs', help='Log management, inspection, and analysis tools')
+    logs_subparsers = logs_parser.add_subparsers(dest='logs_cmd', help='Log management commands')
 
     # Overview
-    logs_overview = logs_subparsers.add_parser('overview', help='Show comprehensive log overview')
+    logs_overview = logs_subparsers.add_parser('overview', help='Show comprehensive log overview with statistics and summaries')
     logs_overview.set_defaults(func=run_logs_overview)
 
     # Search
-    logs_search = logs_subparsers.add_parser('search', help='Search logs')
-    logs_search.add_argument('query', help='Search query')
-    logs_search.add_argument('--level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], help='Filter by log level')
-    logs_search.add_argument('--limit', type=int, default=20, help='Max results')
+    logs_search = logs_subparsers.add_parser('search', help='Search through log files with text queries')
+    logs_search.add_argument('query', help='Text query to search for in log files')
+    logs_search.add_argument('--level', choices=['DEBUG', 'INFO', 'WARNING', 'ERROR'], help='Filter search results by log level')
+    logs_search.add_argument('--limit', type=int, default=20, help='Maximum number of search results to display (default: 20)')
     logs_search.set_defaults(func=run_logs_search)
 
     # Performance
-    logs_perf = logs_subparsers.add_parser('performance', help='Show model performance')
-    logs_perf.add_argument('--limit', type=int, default=10, help='Number of models to show')
+    logs_perf = logs_subparsers.add_parser('performance', help='Show model performance metrics from training logs')
+    logs_perf.add_argument('--limit', type=int, default=10, help='Number of recent models to display (default: 10)')
     logs_perf.set_defaults(func=run_logs_performance)
 
     # Errors
-    logs_errors = logs_subparsers.add_parser('errors', help='Show recent errors and warnings')
-    logs_errors.add_argument('--limit', type=int, default=20, help='Number of errors to show')
+    logs_errors = logs_subparsers.add_parser('errors', help='Show recent errors and warnings from log files')
+    logs_errors.add_argument('--limit', type=int, default=20, help='Number of recent errors to display (default: 20)')
     logs_errors.set_defaults(func=run_logs_errors)
 
     # Cleanup
-    logs_cleanup = logs_subparsers.add_parser('cleanup', help='Clean up old log files')
-    logs_cleanup.add_argument('--days', type=int, default=30, help='Days to keep')
-    logs_cleanup.add_argument('--execute', action='store_true', help='Actually delete files (dry run by default)')
+    logs_cleanup = logs_subparsers.add_parser('cleanup', help='Clean up old log files to free disk space')
+    logs_cleanup.add_argument('--days', type=int, default=30, help='Number of days to keep log files (default: 30)')
+    logs_cleanup.add_argument('--execute', action='store_true', help='Actually delete files (performs dry run by default)')
     logs_cleanup.set_defaults(func=run_logs_cleanup)
 
     # Models management parser
-    models_parser = subparsers.add_parser('models', help='Model management')
-    models_subparsers = models_parser.add_subparsers(dest='models_cmd', help='Model commands')
+    models_parser = subparsers.add_parser('models', help='Trained model management and organization')
+    models_subparsers = models_parser.add_subparsers(dest='models_cmd', help='Model management commands')
 
     # List models
-    models_list = models_subparsers.add_parser('list', help='List all registered models')
-    models_list.add_argument('--tags', type=str, help='Filter by tags (comma-separated)')
+    models_list = models_subparsers.add_parser('list', help='List all registered trained models with metadata')
+    models_list.add_argument('--tags', type=str, help='Filter models by tags (comma-separated list)')
     models_list.set_defaults(func=run_models_list)
 
     # Register model
-    models_register = models_subparsers.add_parser('register', help='Register a new model')
-    models_register.add_argument('--model-path', type=str, required=True, help='Path to the model file (e.g., .zip)')
-    models_register.add_argument('--name', type=str, required=True, help='Model name')
-    models_register.add_argument('--description', type=str, help='Model description')
-    models_register.add_argument('--author', type=str, help='Model author')
-    models_register.add_argument('--tags', type=str, help='Tags for the model (comma-separated)')
+    models_register = models_subparsers.add_parser('register', help='Register a new trained model in the model registry')
+    models_register.add_argument('--model-path', type=str, required=True, help='Path to the trained model file (e.g., model.zip)')
+    models_register.add_argument('--name', type=str, required=True, help='Human-readable name for the model')
+    models_register.add_argument('--description', type=str, help='Detailed description of the model and its capabilities')
+    models_register.add_argument('--author', type=str, help='Name of the person who created or trained the model')
+    models_register.add_argument('--tags', type=str, help='Tags for categorizing the model (comma-separated list)')
     models_register.set_defaults(func=run_models_register)
 
     # Get model info
-    models_info = models_subparsers.add_parser('info', help='Show detailed information about a model')
-    models_info.add_argument('model_id', type=str, help='ID of the model to show')
+    models_info = models_subparsers.add_parser('info', help='Show detailed information about a specific registered model')
+    models_info.add_argument('model_id', type=str, help='Unique identifier of the model to display information for')
     models_info.set_defaults(func=run_models_info)
 
     # Delete model
-    models_delete = models_subparsers.add_parser('delete', help='Delete a registered model')
-    models_delete.add_argument('model_id', type=str, help='ID of the model to delete')
+    models_delete = models_subparsers.add_parser('delete', help='Remove a registered model from the model registry')
+    models_delete.add_argument('model_id', type=str, help='Unique identifier of the model to delete')
     models_delete.set_defaults(func=run_models_delete)
 
     # Experiments management parser
-    experiments_parser = subparsers.add_parser('experiments', help='Experiment management')
-    experiments_subparsers = experiments_parser.add_subparsers(dest='experiments_cmd', help='Experiment commands')
+    experiments_parser = subparsers.add_parser('experiments', help='Machine learning experiment tracking and management')
+    experiments_subparsers = experiments_parser.add_subparsers(dest='experiments_cmd', help='Experiment management commands')
 
     # List experiments
-    experiments_list = experiments_subparsers.add_parser('list', help='List all experiments')
-    experiments_list.add_argument('--status', choices=['running', 'completed', 'failed'], help='Filter by status')
-    experiments_list.add_argument('--tags', type=str, help='Filter by tags (comma-separated)')
+    experiments_list = experiments_subparsers.add_parser('list', help='List all tracked experiments with their current status')
+    experiments_list.add_argument('--status', choices=['running', 'completed', 'failed'], help='Filter experiments by their current status')
+    experiments_list.add_argument('--tags', type=str, help='Filter experiments by tags (comma-separated list)')
     experiments_list.set_defaults(func=run_experiments_list)
 
     # Create experiment
-    experiments_create = experiments_subparsers.add_parser('create', help='Create a new experiment')
-    experiments_create.add_argument('--name', type=str, required=True, help='Experiment name')
-    experiments_create.add_argument('--description', type=str, help='Experiment description')
-    experiments_create.add_argument('--hyperparams', nargs='*', help='Hyperparameters in key=value format (e.g., learning_rate=0.001 batch_size=64)')
-    experiments_create.add_argument('--parent', type=str, help='ID of the parent experiment')
-    experiments_create.add_argument('--tags', type=str, help='Tags for the experiment (comma-separated)')
+    experiments_create = experiments_subparsers.add_parser('create', help='Create a new experiment for tracking training runs')
+    experiments_create.add_argument('--name', type=str, required=True, help='Descriptive name for the experiment')
+    experiments_create.add_argument('--description', type=str, help='Detailed description of the experiment goals and setup')
+    experiments_create.add_argument('--hyperparams', nargs='*', help='Training hyperparameters in key=value format (e.g., learning_rate=0.001 batch_size=64)')
+    experiments_create.add_argument('--parent', type=str, help='ID of the parent experiment for branching experiments')
+    experiments_create.add_argument('--tags', type=str, help='Tags for categorizing the experiment (comma-separated list)')
     experiments_create.set_defaults(func=run_experiments_create)
 
     # Get experiment info
-    experiments_info = experiments_subparsers.add_parser('info', help='Show detailed information about an experiment')
-    experiments_info.add_argument('experiment_id', type=str, help='ID of the experiment to show')
+    experiments_info = experiments_subparsers.add_parser('info', help='Show detailed information about a specific experiment')
+    experiments_info.add_argument('experiment_id', type=str, help='Unique identifier of the experiment to display information for')
     experiments_info.set_defaults(func=run_experiments_info)
 
     # Monitoring parser
-    monitor_parser = subparsers.add_parser('monitor', help='System monitoring')
-    monitor_subparsers = monitor_parser.add_subparsers(dest='monitor_cmd', help='Monitor commands')
+    monitor_parser = subparsers.add_parser('monitor', help='Real-time system resource monitoring and performance tracking')
+    monitor_subparsers = monitor_parser.add_subparsers(dest='monitor_cmd', help='System monitoring commands')
 
     # Start monitoring
-    monitor_start = monitor_subparsers.add_parser('start', help='Start system monitoring')
-    monitor_start.add_argument('--interval', type=int, default=1, help='Interval in seconds for metrics (default: 1)')
+    monitor_start = monitor_subparsers.add_parser('start', help='Start continuous system resource monitoring')
+    monitor_start.add_argument('--interval', type=int, default=1, help='Interval in seconds between metric collection (default: 1)')
     monitor_start.set_defaults(func=run_monitor_start)
 
     # Show status
-    monitor_status = monitor_subparsers.add_parser('status', help='Show current system status')
+    monitor_status = monitor_subparsers.add_parser('status', help='Show current system resource status and performance metrics')
     monitor_status.set_defaults(func=run_monitor_status)
 
     # Visualization parser
-    visualize_parser = subparsers.add_parser('visualize', help='Visualization tools')
+    visualize_parser = subparsers.add_parser('visualize', help='Data visualization and plotting tools for analysis')
     visualize_subparsers = visualize_parser.add_subparsers(dest='visualize_cmd', help='Visualization commands')
 
     # Compare models/experiments
-    visualize_compare = visualize_subparsers.add_parser('compare', help='Compare multiple models or experiments visually')
-    visualize_compare.add_argument('--show', action='store_true', help='Show the plot after saving')
-    visualize_compare.add_argument('--save', type=str, help='Save the plot to a file (e.g., plot.png)')
+    visualize_compare = visualize_subparsers.add_parser('compare', help='Compare multiple models or experiments with visual charts and graphs')
+    visualize_compare.add_argument('--show', action='store_true', help='Display the generated plot in a window after saving')
+    visualize_compare.add_argument('--save', type=str, help='Save the comparison plot to a file (e.g., comparison.png)')
     visualize_compare.set_defaults(func=run_visualize_compare)
 
     # Workflow parser
-    workflow_parser = subparsers.add_parser('workflow', help='Run predefined workflows')
-    workflow_subparsers = workflow_parser.add_subparsers(dest='workflow', help='Workflow commands')
+    workflow_parser = subparsers.add_parser('workflow', help='Run predefined automation workflows for common tasks')
+    workflow_subparsers = workflow_parser.add_subparsers(dest='workflow', help='Automation workflow commands')
 
     # Batch training
-    batch_train = workflow_subparsers.add_parser('batch', help='Run a batch training workflow')
-    batch_train.add_argument('--workflow', choices=['train-multiple', 'evaluate-all'], required=True, help='Workflow to run')
+    batch_train = workflow_subparsers.add_parser('batch', help='Run automated batch training and evaluation workflows')
+    batch_train.add_argument('--workflow', choices=['train-multiple', 'evaluate-all'], required=True, help='Type of workflow to execute: train-multiple or evaluate-all')
     batch_train.set_defaults(func=run_workflow_batch)
 
     # Debug parser
-    debug_parser = subparsers.add_parser('debug', help='Performance profiling and debugging')
-    debug_subparsers = debug_parser.add_subparsers(dest='command', help='Debug commands')
+    debug_parser = subparsers.add_parser('debug', help='Performance profiling and debugging tools for optimization')
+    debug_subparsers = debug_parser.add_subparsers(dest='command', help='Debug and profiling commands')
 
     # Basic demo for profiling
-    debug_basic = debug_subparsers.add_parser('basic', help='Run a basic demo for profiling')
-    debug_basic.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    debug_basic.add_argument('--steps', type=int, default=100, help='Number of steps (default: 100)')
+    debug_basic = debug_subparsers.add_parser('basic', help='Run a basic demo with performance profiling enabled')
+    debug_basic.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels for profiling (default: 30)')
+    debug_basic.add_argument('--steps', type=int, default=100, help='Number of simulation steps to run for profiling (default: 100)')
     debug_basic.set_defaults(func=run_debug_profile)
 
     # Training for profiling
-    debug_training = debug_subparsers.add_parser('training', help='Run a training session for profiling')
-    debug_training.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
-    debug_training.add_argument('--steps', type=int, default=10000, help='Total timesteps (default: 10000)')
+    debug_training = debug_subparsers.add_parser('training', help='Run a training session with performance profiling enabled')
+    debug_training.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels for profiling (default: 30)')
+    debug_training.add_argument('--steps', type=int, default=10000, help='Total number of timesteps for training profiling (default: 10000)')
     debug_training.set_defaults(func=run_debug_profile)
 
     # Help/Tutorial parser
-    help_parser = subparsers.add_parser('help', help='Show tutorials and help')
-    help_subparsers = help_parser.add_subparsers(dest='topic', help='Help topics')
+    help_parser = subparsers.add_parser('help', help='Interactive tutorials and comprehensive help documentation')
+    help_subparsers = help_parser.add_subparsers(dest='topic', help='Help and tutorial topics')
 
     # Basic help
-    help_basic = help_subparsers.add_parser('basic', help='Show basic tutorial')
-    help_basic.add_argument('--interactive', action='store_true', help='Run interactive tutorial')
+    help_basic = help_subparsers.add_parser('basic', help='Show basic usage tutorial and getting started guide')
+    help_basic.add_argument('--interactive', action='store_true', help='Run an interactive step-by-step tutorial')
     help_basic.set_defaults(func=run_help_tutorial)
 
     # Training help
-    help_training = help_subparsers.add_parser('training', help='Show training tutorial')
-    help_training.add_argument('--interactive', action='store_true', help='Run interactive training tutorial')
+    help_training = help_subparsers.add_parser('training', help='Show comprehensive training tutorial and best practices')
+    help_training.add_argument('--interactive', action='store_true', help='Run an interactive training tutorial with examples')
     help_training.set_defaults(func=run_help_tutorial)
 
     # Experiments help
-    help_experiments = help_subparsers.add_parser('experiments', help='Show experiments tutorial')
-    help_experiments.add_argument('--interactive', action='store_true', help='Run interactive experiments tutorial')
+    help_experiments = help_subparsers.add_parser('experiments', help='Show experiment management tutorial and workflow guide')
+    help_experiments.add_argument('--interactive', action='store_true', help='Run an interactive experiment management tutorial')
     help_experiments.set_defaults(func=run_help_tutorial)
 
     # Monitoring help
-    help_monitoring = help_subparsers.add_parser('monitoring', help='Show monitoring tutorial')
-    help_monitoring.add_argument('--interactive', action='store_true', help='Run interactive monitoring tutorial')
+    help_monitoring = help_subparsers.add_parser('monitoring', help='Show system monitoring tutorial and performance analysis guide')
+    help_monitoring.add_argument('--interactive', action='store_true', help='Run an interactive system monitoring tutorial')
     help_monitoring.set_defaults(func=run_help_tutorial)
 
     args = parser.parse_args()
