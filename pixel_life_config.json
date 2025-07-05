@@ -1,7 +1,7 @@
 {
   "environment": {
     "size": 30,
-    "max_pixels": 100000,
+    "max_pixels": 1000,
     "spice_expansion_rate": 0.1
   },
   "training": {
@@ -15,7 +15,7 @@
   },
   "rendering": {
     "enable": true,
-    "fps": 120,
+    "fps": 10,
     "window_size": [
       1200,
       800

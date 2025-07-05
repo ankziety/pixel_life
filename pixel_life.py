@@ -31,6 +31,9 @@ from continual_learning import ContinualLearningSystem
 from basic_renderer import PixelLifeRenderer
 from enhanced_renderer import EnhancedPixelLifeRenderer
 from stable_baselines3 import PPO, DQN
+from src.model_manager import ModelManager
+from src.experiment_manager import ExperimentManager
+from src.system_monitor import SystemMonitor
 
 # Apple Silicon acceleration imports
 try:
