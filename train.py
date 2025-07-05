@@ -296,13 +296,13 @@ def train_pixel_life(
     
     # Callbacks
     main_checkpoint_cb = CheckpointCallback(
-        save_freq=checkpoint_freq,
+        save_freq=max(1, checkpoint_freq // n_envs),  # Ensure at least 1 to prevent division by zero
         save_path=os.path.join(main_dir, "checkpoints"),
         name_prefix="main_model"
     )
     
     spice_checkpoint_cb = CheckpointCallback(
-        save_freq=checkpoint_freq,
+        save_freq=max(1, checkpoint_freq // n_envs),  # Ensure at least 1 to prevent division by zero
         save_path=os.path.join(spice_dir, "checkpoints"),
         name_prefix="spice_model"
     )
@@ -311,7 +311,17 @@ def train_pixel_life(
     print("\nStarting training...")
     steps_per_update = n_steps * n_envs
     n_updates = total_timesteps // steps_per_update
-    
+
+    # Validate and adjust eval_freq to prevent division by zero
+    if eval_freq > 0:
+        eval_freq_updates = max(1, eval_freq // steps_per_update)
+        if eval_freq_updates == 0:
+            eval_freq_updates = 1
+            print(f"⚠️  Warning: eval_freq ({eval_freq}) is smaller than steps_per_update ({steps_per_update})")
+            print(f"   Setting evaluation to every update instead.")
+    else:
+        eval_freq_updates = 0  # Disable evaluation
+
     for update in range(n_updates):
         current_step = update * steps_per_update
         
@@ -329,15 +339,16 @@ def train_pixel_life(
         # Train spice agent (less frequently)
         if update % 2 == 0:
             print("  Training spice agent...")
+            spice_timesteps = max(1, steps_per_update // 2)  # Ensure at least 1 timestep
             spice_model.learn(
-                total_timesteps=steps_per_update // 2,
+                total_timesteps=spice_timesteps,
                 reset_num_timesteps=False,
                 callback=spice_checkpoint_cb,
                 progress_bar=True
             )
         
-        # Periodic evaluation
-        if (update + 1) % (eval_freq // steps_per_update) == 0:
+        # Periodic evaluation (only if eval_freq_updates > 0)
+        if eval_freq_updates > 0 and (update + 1) % eval_freq_updates == 0:
             print("\n  Evaluating agents...")
             eval_env = PixelLifeEnv(**env_kwargs)
             eval_wrapped = PixelLifeWrapper(eval_env, agent_type='spice')
