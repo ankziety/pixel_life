@@ -1,0 +1,110 @@
+{
+  "generated_at": "2025-07-05T13:46:56.536331",
+  "baselines": [
+    {
+      "command": [
+        "basic"
+      ],
+      "name": "basic_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/basic_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "basic",
+        "--size",
+        "10"
+      ],
+      "name": "basic_size_10",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/basic_size_10.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "basic",
+        "--size",
+        "20"
+      ],
+      "name": "basic_size_20",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/basic_size_20.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "basic",
+        "--size",
+        "30"
+      ],
+      "name": "basic_size_30",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/basic_size_30.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "ai"
+      ],
+      "name": "ai_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/ai_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "per-pixel"
+      ],
+      "name": "per_pixel_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/per_pixel_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "train"
+      ],
+      "name": "train_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/train_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "pygame"
+      ],
+      "name": "pygame_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/pygame_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "enhanced"
+      ],
+      "name": "enhanced_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/enhanced_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "benchmark"
+      ],
+      "name": "benchmark_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/benchmark_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "visualize",
+        "compare"
+      ],
+      "name": "visualize_compare_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/visualize_compare_baseline.png",
+      "status": "success"
+    },
+    {
+      "command": [
+        "basic",
+        "--size",
+        "100"
+      ],
+      "name": "large_env_baseline",
+      "path": "/var/folders/_p/240zbz2n1pj346kzy96zmcc80000gn/T/tmpysubo1h5/visual_baselines/large_env_baseline.png",
+      "status": "success"
+    }
+  ]
+}
