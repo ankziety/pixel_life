@@ -28,20 +28,23 @@ class PixelLifeWrapper(gym.Env):
         
         # Copy relevant attributes and flatten action space for SB3 compatibility
         if agent_type == 'main':
-            # Flatten MultiDiscrete([5, 4]) to Discrete(20) for pixel actions
-            # action_type * 4 + direction
             self.action_space = gym.spaces.Discrete(5 * 4)  # 20 possible actions
         else:
             self.action_space = env.spice_action_space
         
-        # Flatten observation space for SB3 compatibility
-        # Original: Dict with 'grid', 'params', 'tick'
-        # Flattened: concatenated array [grid_flattened, params, tick]
-        grid_size = env.observation_space['grid'].shape[0] * env.observation_space['grid'].shape[1]
+        # Use max_size for observation space
+        max_H = env.max_size
+        max_W = env.max_size
+        grid_size = max_H * max_W
+        energy_size = max_H * max_W
         params_size = env.observation_space['params'].shape[0]
         tick_size = env.observation_space['tick'].shape[0]
-        total_size = grid_size + params_size + tick_size
+        total_size = grid_size + energy_size + params_size + tick_size
         
+        self._max_H = max_H
+        self._max_W = max_W
+        self._params_size = params_size
+        self._tick_size = tick_size
         self.observation_space = gym.spaces.Box(
             low=-1, 
             high=10000, 
@@ -56,11 +59,20 @@ class PixelLifeWrapper(gym.Env):
         return self._flatten_observation(obs), info
     
     def _flatten_observation(self, obs_dict):
-        """Flatten dict observation to array for SB3 compatibility."""
-        grid_flat = obs_dict['grid'].flatten().astype(np.float32)
+        """Flatten dict observation to array for SB3 compatibility, always max size."""
+        grid = obs_dict['grid']
+        energy = obs_dict['energy']
+        # Pad grid and energy to max size
+        padded_grid = np.zeros((self._max_H, self._max_W), dtype=np.float32)
+        padded_energy = np.zeros((self._max_H, self._max_W), dtype=np.float32)
+        h, w = grid.shape
+        padded_grid[:h, :w] = grid.astype(np.float32)
+        padded_energy[:h, :w] = energy.astype(np.float32)
+        grid_flat = padded_grid.flatten()
+        energy_flat = padded_energy.flatten()
         params = obs_dict['params'].astype(np.float32)
         tick = obs_dict['tick'].astype(np.float32)
-        return np.concatenate([grid_flat, params, tick])
+        return np.concatenate([grid_flat, energy_flat, params, tick])
     
     def step(self, action):
         # Get action from the other agent
@@ -86,16 +98,18 @@ class PixelLifeWrapper(gym.Env):
         if self.agent_type == 'main':
             # Convert main action to pixel actions dict
             pixel_actions = self._convert_main_action(action)
-            (obs_main, obs_spice), (r_main, r_spice), done, info = self.env.step(other_action, pixel_actions)
+            (obs_main, obs_spice), (r_main, r_spice), terminated, truncated, info = self.env.step(other_action, pixel_actions)
             obs = obs_main
             reward = r_main
+            done = terminated or truncated
         else:
             # action is spice action, other_action is pixel actions
-            (obs_main, obs_spice), (r_main, r_spice), done, info = self.env.step(action, other_action)
+            (obs_main, obs_spice), (r_main, r_spice), terminated, truncated, info = self.env.step(action, other_action)
             obs = obs_spice
             reward = r_spice
+            done = terminated or truncated
             
-        return self._flatten_observation(obs), reward, done, info
+        return self._flatten_observation(obs), reward, done, False, info
     
     def render(self, mode='human'):
         return self.env.render(mode)
@@ -166,6 +180,7 @@ def train_pixel_life(
     device='cpu',
     log_dir='./logs',
     no_tensorboard=False,
+    buffer_size=10000,
 ):
     """Train both main and spice agents in the Pixel Life environment.
     
@@ -209,15 +224,18 @@ def train_pixel_life(
         vec_env_cls=DummyVecEnv
     )
     
-    # For spice agent, use the raw PixelLifeEnv (not wrapped in Monitor) for DQN
-    spice_env = PixelLifeEnv(**env_kwargs)
-    spice_env = PixelLifeWrapper(spice_env, agent_type='spice')
+    # For spice agent, create a vectorized environment like main agent
+    spice_vec_env = make_vec_env(
+        make_env('spice', env_kwargs),
+        n_envs=n_envs,
+        vec_env_cls=DummyVecEnv
+    )
 
     # Debug: Print action and observation spaces
     print("\nMain agent action space:", main_vec_env.action_space)
     print("Main agent observation space:", main_vec_env.observation_space)
-    print("Spice agent action space:", spice_env.action_space)
-    print("Spice agent observation space:", spice_env.observation_space)
+    print("Spice agent action space:", spice_vec_env.action_space)
+    print("Spice agent observation space:", spice_vec_env.observation_space)
 
     # Create eval environments
     eval_main_env = make_vec_env(make_env('main', env_kwargs), n_envs=1)
@@ -237,12 +255,14 @@ def train_pixel_life(
         device=device
     )
 
-    # Create DQN agent for spice agent (adversarial)
-    spice_model = DQN(
+    # Create PPO agent for spice agent
+    spice_model = PPO(
         "MlpPolicy",
-        spice_env,
+        spice_vec_env,
         learning_rate=learning_rate,
+        n_steps=n_steps,
         batch_size=batch_size,
+        n_epochs=n_epochs,
         gamma=gamma,
         verbose=1,
         tensorboard_log=None if no_tensorboard else spice_dir,
@@ -253,8 +273,7 @@ def train_pixel_life(
     for env_idx in range(n_envs):
         # Access the wrapped environment inside the Monitor wrapper
         main_vec_env.envs[env_idx].env.other_model = spice_model
-    # For spice_env, set the main_model as other_model
-    spice_env.other_model = main_model
+        spice_vec_env.envs[env_idx].env.other_model = main_model
     
     # Callbacks
     main_checkpoint_cb = CheckpointCallback(
@@ -318,7 +337,7 @@ def train_pixel_life(
                     pixel_actions[coord] = (1, eval_step % 4)  # Split in different directions
                 
                 # Convert spice action and step
-                obs, reward, done, info = eval_wrapped.step(int(spice_action))
+                obs, reward, done, truncated, info = eval_wrapped.step(int(spice_action))
                 total_spice_reward += reward
                 
                 if done:
@@ -365,6 +384,8 @@ def parse_args():
                         help='Disable tensorboard logging')
     parser.add_argument('--cpu', action='store_true',
                         help='Force CPU usage (default: auto-detect GPU)')
+    parser.add_argument('--buffer-size', type=int, default=10000,
+                        help='Buffer size for DQN (default: 10000)')
     
     return parser.parse_args()
 
@@ -391,7 +412,8 @@ if __name__ == "__main__":
         'eval_freq': args.eval_freq,
         'device': device,
         'log_dir': args.log_dir,
-        'no_tensorboard': args.no_tensorboard
+        'no_tensorboard': args.no_tensorboard,
+        'buffer_size': args.buffer_size
     }
     
     print("Pixel Life RL Training")
@@ -420,7 +442,7 @@ if __name__ == "__main__":
                 # In a full implementation, you'd predict per-pixel actions
                 pixel_actions[coord] = (1, step % 4)
             
-            obs, reward, done, info = test_wrapped.step(int(spice_action))
+            obs, reward, done, truncated, info = test_wrapped.step(int(spice_action))
             
             if step % 10 == 0:
                 print(f"Step {step}: Organisms={info['organisms']}, Pixels={info['live_pixels']}")

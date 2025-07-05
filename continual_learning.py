@@ -243,7 +243,7 @@ class ContinualLearningSystem:
         if os.path.exists(main_model_path) and os.path.exists(spice_model_path):
             print("📂 Loading existing models...")
             self.main_model = PPO.load(main_model_path)
-            self.spice_model = DQN.load(spice_model_path)
+            self.spice_model = PPO.load(spice_model_path)
             print("✅ Models loaded successfully")
         else:
             print("🆕 Initializing new models...")
@@ -253,13 +253,23 @@ class ContinualLearningSystem:
         """Train initial models from scratch."""
         print("🎯 Training initial models...")
         
-        # Create environments
-        main_vec_env = make_env('main', self.env_kwargs)()
-        spice_env = make_env('spice', self.env_kwargs)()
+        # Create vectorized environments
+        from stable_baselines3.common.vec_env import make_vec_env, DummyVecEnv
+        
+        main_vec_env = make_vec_env(
+            make_env('main', self.env_kwargs),
+            n_envs=1,
+            vec_env_cls=DummyVecEnv
+        )
+        spice_vec_env = make_vec_env(
+            make_env('spice', self.env_kwargs),
+            n_envs=1,
+            vec_env_cls=DummyVecEnv
+        )
         
         # Create models
         self.main_model = PPO("MlpPolicy", main_vec_env, verbose=1)
-        self.spice_model = DQN("MlpPolicy", spice_env, verbose=1)
+        self.spice_model = PPO("MlpPolicy", spice_vec_env, verbose=1)
         
         # Initial training
         self.main_model.learn(total_timesteps=10000)
@@ -331,7 +341,8 @@ class ContinualLearningSystem:
             pixel_actions = main_wrapper._convert_main_action(main_action)
             
             # Execute step
-            obs, rewards_step, done, info = env.step(spice_action, pixel_actions)
+            obs, rewards_step, terminated, truncated, info = env.step(spice_action, pixel_actions)
+            done = terminated or truncated
             total_reward_main += rewards_step[0]
             total_reward_spice += rewards_step[1]
             
@@ -429,13 +440,23 @@ class ContinualLearningSystem:
             print("⚠️ Not enough data for retraining, continuing...")
             return
         
-        # Create environments for retraining
-        main_vec_env = make_env('main', self.env_kwargs)()
-        spice_env = make_env('spice', self.env_kwargs)()
+        # Create vectorized environments for retraining
+        from stable_baselines3.common.vec_env import make_vec_env, DummyVecEnv
+        
+        main_vec_env = make_vec_env(
+            make_env('main', self.env_kwargs),
+            n_envs=1,
+            vec_env_cls=DummyVecEnv
+        )
+        spice_vec_env = make_vec_env(
+            make_env('spice', self.env_kwargs),
+            n_envs=1,
+            vec_env_cls=DummyVecEnv
+        )
         
         # Create new models (or continue training existing ones)
         new_main_model = PPO("MlpPolicy", main_vec_env, verbose=1)
-        new_spice_model = DQN("MlpPolicy", spice_env, verbose=1)
+        new_spice_model = PPO("MlpPolicy", spice_vec_env, verbose=1)
         
         # Transfer learning: copy weights from previous models
         if self.main_model is not None:

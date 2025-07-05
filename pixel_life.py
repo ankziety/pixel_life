@@ -11,6 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from datetime import datetime
+import json
 
 # Add current directory to path for imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -44,7 +45,7 @@ def run_basic_demo(args):
             direction = np.random.randint(0, 4)
             pixel_actions[coord] = (action_type, direction)
         
-        obs, rewards, done, info = env.step(spice_action, pixel_actions)
+        obs, rewards, done, truncated, info = env.step(spice_action, pixel_actions)
         
         if step % 20 == 0:
             print(f"Step {step:3d}: Pixels={len(env.live_pixels):2d}, "
@@ -175,7 +176,7 @@ def run_pygame_demo(args):
             direction = np.random.randint(0, 4)
             pixel_actions[coord] = (action_type, direction)
         
-        obs, rewards, done, info = env.step(spice_action, pixel_actions)
+        obs, rewards, done, truncated, info = env.step(spice_action, pixel_actions)
         
         if step % 20 == 0:
             print(f"Step {step:3d}: Pixels={len(env.live_pixels):2d}")
@@ -201,15 +202,10 @@ def run_enhanced_demo(args):
         print("Pygame not installed. Install with: pip install pygame")
         return
     
-    env = PixelLifeEnv(H=args.size, W=args.size)
-    
-    # Reset environment first to initialize the grid
-    obs = env.reset()
-    
+    # Create enhanced renderer
     renderer = EnhancedPixelLifeRenderer(
-        env=env,
-        width=1400,
-        height=900,
+        env_size=args.size,
+        window_size=(1200, 800),
         initial_zoom=None  # Auto-fit to window
     )
     
@@ -263,7 +259,7 @@ def run_evaluation(args):
     
     if not args.model_path:
         print("Error: --model-path is required for evaluation")
-        return
+        sys.exit(1)
     
     # Load model
     try:
@@ -271,7 +267,7 @@ def run_evaluation(args):
         print(f"Loaded model from: {args.model_path}")
     except Exception as e:
         print(f"Error loading model: {e}")
-        return
+        sys.exit(1)
     
     # Create environment
     env = PixelLifeEnv(H=args.size, W=args.size)
@@ -307,6 +303,130 @@ def run_evaluation(args):
     
     if args.render:
         plt.show()
+
+
+def run_info(args):
+    """Display system information and available models."""
+    print("Pixel Life System Information")
+    print("=" * 40)
+    
+    # Environment info
+    print(f"Environment size: {args.size}x{args.size}")
+    env = PixelLifeEnv(H=args.size, W=args.size)
+    print(f"Action spaces:")
+    print(f"  Main agent: {env.action_space}")
+    print(f"  Spice agent: {env.spice_action_space}")
+    print(f"  Pixel actions: {env.pixel_action_space}")
+    print(f"  Observation spaces:")
+    print(f"    Main: {env.observation_space}")
+    print(f"    Spice: {env.observation_space}")
+    
+    # Check for saved models
+    print(f"\nSaved models:")
+    if os.path.exists("./logs"):
+        for root, dirs, files in os.walk("./logs"):
+            for file in files:
+                if file.endswith(".zip"):
+                    model_path = os.path.join(root, file)
+                    print(f"  {model_path}")
+    
+    if not os.path.exists("./logs") or not any(f.endswith(".zip") for _, _, files in os.walk("./logs") for f in files):
+        print("  No saved models found")
+    
+    # System info
+    print(f"\nSystem information:")
+    print(f"  Python version: {sys.version}")
+    print(f"  NumPy version: {np.__version__}")
+    try:
+        import torch
+        print(f"  PyTorch version: {torch.__version__}")
+        print(f"  CUDA available: {torch.cuda.is_available()}")
+    except ImportError:
+        print("  PyTorch: Not installed")
+    
+    try:
+        import pygame
+        print(f"  Pygame version: {pygame.version.ver}")
+    except ImportError:
+        print("  Pygame: Not installed")
+
+
+def run_benchmark(args):
+    """Run performance benchmark."""
+    print("Running Performance Benchmark")
+    print("=" * 40)
+    
+    env = PixelLifeEnv(H=args.size, W=args.size)
+    
+    # Warm up
+    obs = env.reset()
+    for _ in range(100):
+        spice_action = env.spice_action_space.sample()
+        pixel_actions = {}
+        for coord in env.live_pixels:
+            pixel_actions[coord] = (np.random.randint(0, 4), np.random.randint(0, 4))
+        obs, _, _, _, _ = env.step(spice_action, pixel_actions)
+    
+    # Benchmark
+    start_time = time.time()
+    steps = 0
+    
+    for _ in range(args.steps):
+        spice_action = env.spice_action_space.sample()
+        pixel_actions = {}
+        for coord in env.live_pixels:
+            pixel_actions[coord] = (np.random.randint(0, 4), np.random.randint(0, 4))
+        obs, _, _, _, _ = env.step(spice_action, pixel_actions)
+        steps += 1
+    
+    end_time = time.time()
+    elapsed = end_time - start_time
+    steps_per_second = steps / elapsed
+    
+    print(f"Benchmark Results:")
+    print(f"  Environment size: {args.size}x{args.size}")
+    print(f"  Steps executed: {steps:,}")
+    print(f"  Time elapsed: {elapsed:.2f} seconds")
+    print(f"  Steps per second: {steps_per_second:.1f}")
+    print(f"  Average pixels per step: {np.mean([len(env.live_pixels) for _ in range(10)]):.1f}")
+
+
+def run_config(args):
+    """Generate or load configuration file."""
+    if args.generate:
+        config = {
+            "environment": {
+                "size": 30,
+                "max_pixels": 1000,
+                "spice_expansion_rate": 0.1
+            },
+            "training": {
+                "total_timesteps": 1000000,
+                "n_envs": 4,
+                "learning_rate": 3e-4,
+                "n_steps": 2048,
+                "batch_size": 64,
+                "n_epochs": 10,
+                "gamma": 0.99
+            },
+            "rendering": {
+                "enable": True,
+                "fps": 10,
+                "window_size": [1200, 800]
+            }
+        }
+        
+        with open("pixel_life_config.json", "w") as f:
+            json.dump(config, f, indent=2)
+        print("Generated pixel_life_config.json")
+        
+    elif args.load and os.path.exists(args.load):
+        with open(args.load, "r") as f:
+            config = json.load(f)
+        print(f"Loaded configuration from {args.load}:")
+        print(json.dumps(config, indent=2))
+    else:
+        print("Use --generate to create a config file or --load <file> to load one")
 
 
 def main():
@@ -386,6 +506,23 @@ def main():
     eval_parser.add_argument('--steps', type=int, default=500, help='Steps per episode (default: 500)')
     eval_parser.add_argument('--render', action='store_true', help='Enable rendering')
     eval_parser.set_defaults(func=run_evaluation)
+    
+    # Info parser
+    info_parser = subparsers.add_parser('info', help='Display system information')
+    info_parser.add_argument('--size', type=int, default=30, help='Environment size for testing (default: 30)')
+    info_parser.set_defaults(func=run_info)
+    
+    # Benchmark parser
+    benchmark_parser = subparsers.add_parser('benchmark', help='Run performance benchmark')
+    benchmark_parser.add_argument('--size', type=int, default=30, help='Environment size (default: 30)')
+    benchmark_parser.add_argument('--steps', type=int, default=10000, help='Number of steps to benchmark (default: 10000)')
+    benchmark_parser.set_defaults(func=run_benchmark)
+    
+    # Config parser
+    config_parser = subparsers.add_parser('config', help='Configuration management')
+    config_parser.add_argument('--generate', action='store_true', help='Generate default config file')
+    config_parser.add_argument('--load', type=str, help='Load and display config file')
+    config_parser.set_defaults(func=run_config)
     
     args = parser.parse_args()
     

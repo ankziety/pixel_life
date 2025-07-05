@@ -56,8 +56,6 @@ class PerPixelAgent:
         
         if self.model_type == 'PPO':
             self.model = PPO("MlpPolicy", env, verbose=0)
-        elif self.model_type == 'DQN':
-            self.model = DQN("MlpPolicy", env, verbose=0)
     
     def predict_action(self, observation, deterministic=False):
         """Predict action for this pixel."""
