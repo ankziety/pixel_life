@@ -3,3 +3,7 @@
 pixel_life/__pycache__/*
 pixel_life/logs/*
 **/*logs*/
+.pytest_cache/*
+.DS_Store
+.vscode/*
+.venv/*

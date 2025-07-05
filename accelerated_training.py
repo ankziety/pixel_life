@@ -174,6 +174,7 @@ def train_accelerated_pixel_life(
     log_dir='./accelerated_logs',
     no_tensorboard=False,
     buffer_size=10000,
+    env_kwargs=None,
 ):
     """Train both main and spice agents using Apple Silicon acceleration.
     
@@ -197,13 +198,19 @@ def train_accelerated_pixel_life(
     device = accelerator.device
     print(f"🚀 Training on device: {device}")
     
-    # Environment configuration
-    env_kwargs = {'H': 50, 'W': 50, 'max_size': 100}
+    # Environment configuration - use passed kwargs or defaults
+    if env_kwargs is None:
+        env_kwargs = {'H': 50, 'W': 50, 'max_size': 100}
     
     # Create vectorized environments
     print("Creating vectorized environments...")
-    main_env = SubprocVecEnv([make_accelerated_env('main', env_kwargs) for _ in range(n_envs)])
-    spice_env = SubprocVecEnv([make_accelerated_env('spice', env_kwargs) for _ in range(n_envs)])
+    try:
+        main_env = SubprocVecEnv([make_accelerated_env('main', env_kwargs) for _ in range(n_envs)])
+        spice_env = SubprocVecEnv([make_accelerated_env('spice', env_kwargs) for _ in range(n_envs)])
+    except Exception as e:
+        print(f"SubprocVecEnv failed, trying DummyVecEnv: {e}")
+        main_env = DummyVecEnv([make_accelerated_env('main', env_kwargs) for _ in range(n_envs)])
+        spice_env = DummyVecEnv([make_accelerated_env('spice', env_kwargs) for _ in range(n_envs)])
     
     # Create evaluation environments
     eval_main_env = DummyVecEnv([make_accelerated_env('main', env_kwargs)])

@@ -198,6 +198,18 @@ def train_pixel_life(
         log_dir: Directory for logs and checkpoints
     """
     
+    # Initialize logging manager
+    try:
+        from log_manager import LogManager
+        log_manager = LogManager(log_dir)
+        request_id = log_manager.start_request()
+        log_manager.log("INFO", "Starting Pixel Life training session", 
+                       module="train", function="train_pixel_life")
+    except ImportError:
+        log_manager = None
+        request_id = None
+        print("Warning: LogManager not available, using basic logging")
+    
     # Create log directories
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = os.path.join(log_dir, f"run_{timestamp}")
@@ -212,6 +224,13 @@ def train_pixel_life(
     print(f"Device: {device}")
     print(f"Total timesteps: {total_timesteps:,}")
     print(f"Parallel environments: {n_envs}")
+    
+    if log_manager:
+        log_manager.log("INFO", f"Training configuration: timesteps={total_timesteps}, envs={n_envs}, device={device}",
+                       module="train", function="train_pixel_life", request_id=request_id)
+    
+    # Record start time for performance tracking
+    start_time = time.time()
     
     # Environment kwargs
     env_kwargs = {'H': 30, 'W': 30, 'max_size': 100}
@@ -350,6 +369,41 @@ def train_pixel_life(
     print("\nSaving final models...")
     main_model.save(os.path.join(main_dir, "final_model"))
     spice_model.save(os.path.join(spice_dir, "final_model"))
+    
+    # Log performance metrics
+    if log_manager:
+        from log_manager import ModelPerformance
+        
+        # Calculate model sizes
+        main_model_size = os.path.getsize(os.path.join(main_dir, "final_model.zip")) / (1024 * 1024)
+        spice_model_size = os.path.getsize(os.path.join(spice_dir, "final_model.zip")) / (1024 * 1024)
+        
+        # Log main model performance
+        main_performance = ModelPerformance(
+            model_path=os.path.join(main_dir, "final_model.zip"),
+            timestamp=timestamp,
+            generation=1,
+            episode_reward=total_spice_reward if 'total_spice_reward' in locals() else 0.0,
+            survival_rate=0.8,  # Placeholder
+            training_steps=total_timesteps,
+            model_size_mb=main_model_size,
+            training_time_seconds=time.time() - start_time if 'start_time' in locals() else 0.0,
+            environment_size=30,
+            hyperparameters={
+                'learning_rate': learning_rate,
+                'n_steps': n_steps,
+                'batch_size': batch_size,
+                'n_epochs': n_epochs,
+                'gamma': gamma,
+                'n_envs': n_envs
+            },
+            device=device,
+            framework='stable-baselines3'
+        )
+        log_manager.log_model_performance(main_performance)
+        
+        log_manager.log("INFO", f"Training completed successfully. Models saved to {run_dir}",
+                       module="train", function="train_pixel_life", request_id=request_id)
     
     print(f"\nTraining complete! Models saved to: {run_dir}")
     

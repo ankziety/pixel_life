@@ -60,38 +60,67 @@ class AppleSiliconAccelerator:
 accelerator = AppleSiliconAccelerator()
 
 @jit(nopython=True, parallel=True)
-def accelerated_grid_update(grid, live_pixels, pixel_energy, params):
+def accelerated_grid_update(grid, live_pixels_arr, pixel_energy_arr, params):
     """
-    Numba-accelerated grid update function.
-    
+    Numba-accelerated grid update function using only numpy arrays.
     Args:
         grid: Current grid state
-        live_pixels: Set of live pixel coordinates
-        pixel_energy: Dictionary of pixel energy levels
-        params: Game parameters
-    
+        live_pixels_arr: (N, 2) array of live pixel coordinates
+        pixel_energy_arr: (N, 3) array of (y, x, energy)
+        params: Game parameters (array)
     Returns:
-        Updated grid, new live pixels set, updated energy levels
+        Updated grid, new_live_pixels_arr, new_pixel_energy_arr
     """
     H, W = grid.shape
     new_grid = grid.copy()
-    new_live_pixels = set()
-    new_pixel_energy = {}
-    
-    # Apply energy decay and check for deaths
-    for y, x in live_pixels:
+    n = live_pixels_arr.shape[0]
+    # Preallocate max possible size (all could survive)
+    new_live_pixels = np.empty((n, 2), dtype=np.int32)
+    new_pixel_energy = np.empty((n, 3), dtype=np.float32)
+    count = 0
+    for i in prange(n):
+        y = int(live_pixels_arr[i, 0])
+        x = int(live_pixels_arr[i, 1])
+        current_energy = 0.0
+        # Find energy for this pixel
+        for j in range(pixel_energy_arr.shape[0]):
+            if int(pixel_energy_arr[j, 0]) == y and int(pixel_energy_arr[j, 1]) == x:
+                current_energy = pixel_energy_arr[j, 2]
+                break
+        new_energy = current_energy - params[4]  # energy_decay is 5th param
         if 0 <= y < H and 0 <= x < W:
-            current_energy = pixel_energy.get((y, x), 0.0)
-            new_energy = current_energy - params['energy_decay']
-            
             if new_energy > 0:
-                new_live_pixels.add((y, x))
-                new_pixel_energy[(y, x)] = new_energy
+                new_live_pixels[count, 0] = y
+                new_live_pixels[count, 1] = x
+                new_pixel_energy[count, 0] = y
+                new_pixel_energy[count, 1] = x
+                new_pixel_energy[count, 2] = new_energy
                 new_grid[y, x] = 1
+                count += 1
             else:
                 new_grid[y, x] = -1  # Dead cell
-    
-    return new_grid, new_live_pixels, new_pixel_energy
+    return new_grid, new_live_pixels[:count], new_pixel_energy[:count]
+
+# Helper functions for conversion (not JIT)
+def live_pixels_set_to_array(live_pixels):
+    arr = np.array(list(live_pixels), dtype=np.int32)
+    if arr.size == 0:
+        return np.zeros((0, 2), dtype=np.int32)
+    return arr.reshape(-1, 2)
+
+def pixel_energy_dict_to_array(pixel_energy):
+    arr = np.zeros((len(pixel_energy), 3), dtype=np.float32)
+    for i, ((y, x), energy) in enumerate(pixel_energy.items()):
+        arr[i, 0] = y
+        arr[i, 1] = x
+        arr[i, 2] = energy
+    return arr
+
+def array_to_live_pixels_set(arr):
+    return set((int(y), int(x)) for y, x in arr)
+
+def array_to_pixel_energy_dict(arr):
+    return {(int(y), int(x)): float(energy) for y, x, energy in arr}
 
 @jit(nopython=True)
 def accelerated_pixel_movement(y, x, direction, grid, pixel_energy, params):
@@ -123,9 +152,9 @@ def accelerated_pixel_movement(y, x, direction, grid, pixel_energy, params):
     # Check bounds and collision
     if (0 <= new_y < H and 0 <= new_x < W and 
         grid[new_y, new_x] == 0 and  # Empty space
-        pixel_energy >= params['min_energy_to_move']):
+        pixel_energy >= params[6]): # min_energy_to_move is 7th param
         
-        energy_cost = params['move_cost']
+        energy_cost = params[0] # move_cost is 1st param
         return new_y, new_x, True, energy_cost
     
     return y, x, False, 0.0
@@ -161,7 +190,7 @@ def accelerated_pixel_consume(y, x, direction, grid, pixel_energy, params):
     if (0 <= target_y < H and 0 <= target_x < W and 
         grid[target_y, target_x] == 1):
         
-        energy_gain = params['consume_gain']
+        energy_gain = params[1] # consume_gain is 2nd param
         return True, energy_gain, target_y, target_x
     
     return False, 0.0, y, x
@@ -183,7 +212,7 @@ def accelerated_pixel_reproduce(y, x, direction, grid, pixel_energy, params):
     """
     H, W = grid.shape
     
-    if pixel_energy < params['min_energy_to_reproduce']:
+    if pixel_energy < params[7]: # min_energy_to_reproduce is 8th param
         return False, 0.0, y, x
     
     # Calculate child position
@@ -200,7 +229,7 @@ def accelerated_pixel_reproduce(y, x, direction, grid, pixel_energy, params):
     if (0 <= child_y < H and 0 <= child_x < W and 
         grid[child_y, child_x] == 0):
         
-        energy_cost = params['reproduce_cost']
+        energy_cost = params[2] # reproduce_cost is 3rd param
         return True, energy_cost, child_y, child_x
     
     return False, 0.0, y, x
@@ -304,10 +333,18 @@ class AcceleratedPixelLifeEnv:
         if spice_action == 5:  # Tweak rule
             self._apply_tweak()
         
+        # Convert current state to Numba-compatible arrays
+        live_pixels_arr = live_pixels_set_to_array(self.live_pixels)
+        pixel_energy_arr = pixel_energy_dict_to_array(self.pixel_energy)
+        
         # Apply energy decay using accelerated function
-        self.grid, self.live_pixels, self.pixel_energy = accelerated_grid_update(
-            self.grid, self.live_pixels, self.pixel_energy, self.params_array
+        self.grid, new_live_pixels_arr, new_pixel_energy_arr = accelerated_grid_update(
+            self.grid, live_pixels_arr, pixel_energy_arr, self.params_array
         )
+        
+        # Convert Numba arrays back to sets/dicts for environment state
+        self.live_pixels = array_to_live_pixels_set(new_live_pixels_arr)
+        self.pixel_energy = array_to_pixel_energy_dict(new_pixel_energy_arr)
         
         # Execute pixel actions
         for (y, x), (action_type, direction) in pixel_actions.items():

@@ -23,6 +23,8 @@ import gymnasium as gym
 from stable_baselines3 import PPO, DQN
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.env_util import make_vec_env
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 from env import PixelLifeEnv
 from train import PixelLifeWrapper, make_env
@@ -254,8 +256,6 @@ class ContinualLearningSystem:
         print("🎯 Training initial models...")
         
         # Create vectorized environments
-        from stable_baselines3.common.vec_env import make_vec_env, DummyVecEnv
-        
         main_vec_env = make_vec_env(
             make_env('main', self.env_kwargs),
             n_envs=1,
@@ -306,6 +306,10 @@ class ContinualLearningSystem:
     
     def run_episode(self, max_steps: int = 1000, render: bool = False) -> Dict:
         """Run a single episode and collect data."""
+        # Ensure models are initialized
+        if self.main_model is None or self.spice_model is None:
+            self.initialize_models()
+        
         env = PixelLifeEnv(**self.env_kwargs)
         
         # Create wrappers

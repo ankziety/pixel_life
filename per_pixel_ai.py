@@ -232,13 +232,14 @@ class PerPixelAISystem:
         step = 0
         total_reward = 0
         pixel_rewards = {}
+        truncated = False
         
-        while step < max_steps and not self.env.done:
+        while step < max_steps and not (self.env.done or truncated):
             # Predict actions for all pixels
             pixel_actions = self.predict_pixel_actions()
             
             # Execute step
-            obs, rewards, done, info = self.env.step(0, pixel_actions)  # No spice action
+            obs, rewards, done, truncated, info = self.env.step(0, pixel_actions)  # No spice action
             total_reward += rewards[0]
             
             # Update pixel agents with their individual rewards

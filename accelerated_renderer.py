@@ -142,8 +142,10 @@ class AcceleratedRenderer:
     
     def _array_to_surface(self, color_array, surface):
         """Convert numpy array to pygame surface efficiently."""
-        # Use pygame's surfarray for faster conversion
-        pygame.surfarray.blit_array(surface, color_array)
+        # Expand each grid cell to cell_size x cell_size pixels
+        cell_size = self.cell_size
+        expanded = np.repeat(np.repeat(color_array, cell_size, axis=0), cell_size, axis=1)
+        pygame.surfarray.blit_array(surface, expanded)
     
     def _render_fps(self):
         """Render FPS counter."""
