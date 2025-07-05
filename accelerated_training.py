@@ -220,24 +220,28 @@ def train_accelerated_pixel_life(
     callbacks = []
     
     if checkpoint_freq > 0:
+        # Ensure save_freq is at least 1 to prevent division by zero
+        checkpoint_save_freq = max(1, checkpoint_freq // n_envs)
         main_checkpoint_callback = CheckpointCallback(
-            save_freq=checkpoint_freq // n_envs,
+            save_freq=checkpoint_save_freq,
             save_path=os.path.join(log_dir, "main_model"),
             name_prefix="main_model"
         )
         spice_checkpoint_callback = CheckpointCallback(
-            save_freq=checkpoint_freq // n_envs,
+            save_freq=checkpoint_save_freq,
             save_path=os.path.join(log_dir, "spice_model"),
             name_prefix="spice_model"
         )
         callbacks.extend([main_checkpoint_callback, spice_checkpoint_callback])
     
     if eval_freq > 0:
+        # Ensure eval_freq is at least 1 to prevent division by zero
+        eval_save_freq = max(1, eval_freq // n_envs)
         main_eval_callback = EvalCallback(
             eval_main_env,
             best_model_save_path=os.path.join(log_dir, "best_main_model"),
             log_path=os.path.join(log_dir, "eval_main"),
-            eval_freq=eval_freq // n_envs,
+            eval_freq=eval_save_freq,
             deterministic=True,
             render=False
         )
@@ -245,7 +249,7 @@ def train_accelerated_pixel_life(
             eval_spice_env,
             best_model_save_path=os.path.join(log_dir, "best_spice_model"),
             log_path=os.path.join(log_dir, "eval_spice"),
-            eval_freq=eval_freq // n_envs,
+            eval_freq=eval_save_freq,
             deterministic=True,
             render=False
         )
