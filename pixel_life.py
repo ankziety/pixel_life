@@ -146,7 +146,7 @@ def run_ai_demo(args):
         # Convert main action to pixel actions
         pixel_actions = {}
         for coord in env.live_pixels:
-            pixel_actions[coord] = (int(main_action % 4), int(main_action // 4))
+            pixel_actions[coord] = (int(main_action % 4), int(main_action // 4) % 4)
         
         obs, rewards, done, truncated, info = env.step(int(spice_action), pixel_actions)
         
@@ -401,8 +401,8 @@ def run_evaluation(args):
         print(f"Error loading model: {e}")
         sys.exit(1)
     
-    # Create environment
-    env = PixelLifeEnv(H=args.size, W=args.size)
+    # Create environment with max_size parameter to match training
+    env = PixelLifeEnv(H=args.size, W=args.size, max_size=100)
     wrapped_env = PixelLifeWrapper(env, 'main')
     
     # Run evaluation
