@@ -32,13 +32,13 @@ class PixelLifeEnv(gym.Env):
         
         # Game balance parameters (what spice can tweak)
         self.default_params = {
-            'move_cost': 0.1,           # Energy cost for moving
-            'consume_gain': 1.5,        # Energy gained from consuming
-            'reproduce_cost': 1.5,      # Energy cost for reproduction
+            'move_cost': 0.05,          # Reduced energy cost for moving
+            'consume_gain': 2.0,        # Increased energy gained from consuming
+            'reproduce_cost': 1.0,      # Reduced energy cost for reproduction
             'max_energy': 8.0,          # Maximum energy per pixel
-            'energy_decay': 0.02,       # Energy lost per tick
-            'min_energy_to_move': 0.3,  # Minimum energy required to move
-            'min_energy_to_reproduce': 2.0,  # Minimum energy to reproduce
+            'energy_decay': 0.05,       # Increased energy lost per tick
+            'min_energy_to_move': 0.2,  # Reduced minimum energy required to move
+            'min_energy_to_reproduce': 1.5,  # Reduced minimum energy to reproduce
         }
         self.params = self.default_params.copy()
         self.param_ranges = {
@@ -56,6 +56,8 @@ class PixelLifeEnv(gym.Env):
         self.done = False
         self.last_main_reward = 0  # Track for spice reward calculation
         self.pixel_energy = {}  # Energy level for each pixel
+        self.pixel_positions = {}  # Track pixel positions for movement detection
+        self.pixel_stagnation = {}  # Track how long pixels have been in the same position
         
         # Action spaces
         # Pixel action: (action_type, direction)
@@ -104,6 +106,8 @@ class PixelLifeEnv(gym.Env):
         self.dead_cells.clear()
         self.pixel_ages.clear()
         self.pixel_energy.clear()
+        self.pixel_positions.clear()
+        self.pixel_stagnation.clear()
         
         # Reset parameters to defaults
         self.params = self.default_params.copy()
@@ -135,6 +139,8 @@ class PixelLifeEnv(gym.Env):
                 self.grid[y, x] = 1
                 self.pixel_ages[(y, x)] = 0
                 self.pixel_energy[(y, x)] = self.params['max_energy'] / 2
+                self.pixel_positions[(y, x)] = (y, x)
+                self.pixel_stagnation[(y, x)] = 0
         
         # Return initial observations
         obs_main = self._get_main_observation()
@@ -170,10 +176,21 @@ class PixelLifeEnv(gym.Env):
             tweaked_param = self._apply_tweak()
             spice_success = True
             
-        # 2. Apply energy decay to all pixels
+        # 2. Apply energy decay to all pixels and track stagnation
         for (y, x) in list(self.live_pixels):
             self.pixel_energy[(y, x)] -= self.params['energy_decay']
             self.pixel_ages[(y, x)] += 1
+            
+            # Track stagnation (how long pixel has been in same position)
+            if (y, x) in self.pixel_positions:
+                if self.pixel_positions[(y, x)] == (y, x):
+                    self.pixel_stagnation[(y, x)] += 1
+                else:
+                    self.pixel_stagnation[(y, x)] = 0
+                    self.pixel_positions[(y, x)] = (y, x)
+            else:
+                self.pixel_positions[(y, x)] = (y, x)
+                self.pixel_stagnation[(y, x)] = 0
             
             # Pixel dies if energy reaches zero
             if self.pixel_energy[(y, x)] <= 0:
@@ -207,12 +224,34 @@ class PixelLifeEnv(gym.Env):
         # 5. Compute rewards
         current_live_pixels = len(self.live_pixels)
         
-        # Main reward: survival time + energy efficiency
-        survival_bonus = current_live_pixels * 1.0  # Base survival reward
-        energy_efficiency = sum(self.pixel_energy.values()) / max(current_live_pixels, 1)
-        age_bonus = sum(self.pixel_ages.values()) / max(current_live_pixels, 1) * 0.1
+        # Main reward: encourage dynamic behavior and energy management
+        survival_bonus = current_live_pixels * 0.1  # Reduced survival reward
+        energy_efficiency = sum(self.pixel_energy.values()) / max(current_live_pixels, 1) * 0.5
+        age_bonus = sum(self.pixel_ages.values()) / max(current_live_pixels, 1) * 0.05
         
-        reward_main = survival_bonus + energy_efficiency + age_bonus
+        # Action reward: encourage movement and interaction
+        action_reward = 0.0
+        for action_result in action_results.values():
+            if action_result in ['move_success', 'consume_success', 'reproduce_success']:
+                action_reward += 0.5  # Reward successful actions
+            elif action_result == 'no_op':
+                action_reward -= 0.1  # Small penalty for doing nothing
+        
+        # Energy management reward
+        energy_management_reward = 0.0
+        for energy in self.pixel_energy.values():
+            if energy > self.params['max_energy'] * 0.8:  # Reward high energy
+                energy_management_reward += 0.2
+            elif energy < self.params['max_energy'] * 0.2:  # Penalty for low energy
+                energy_management_reward -= 0.1
+        
+        # Stagnation penalty: discourage pixels from staying in the same position
+        stagnation_penalty = 0.0
+        for stagnation in self.pixel_stagnation.values():
+            if stagnation > 10:  # Penalty after 10 ticks of no movement
+                stagnation_penalty -= 0.1 * (stagnation - 10)
+        
+        reward_main = survival_bonus + energy_efficiency + age_bonus + action_reward + energy_management_reward + stagnation_penalty
         
         # Spice reward based on main agent's performance
         if current_live_pixels == 0:  # Main agent dead
@@ -365,6 +404,8 @@ class PixelLifeEnv(gym.Env):
         self.live_pixels.add((new_y, new_x))
         self.pixel_energy[(new_y, new_x)] = self.pixel_energy[(new_y, new_x)] - self.params['move_cost']
         self.pixel_ages[(new_y, new_x)] = 0 # Reset age at new position
+        self.pixel_positions[(new_y, new_x)] = (new_y, new_x)
+        self.pixel_stagnation[(new_y, new_x)] = 0 # Reset stagnation counter
         
         return True
     
@@ -376,6 +417,10 @@ class PixelLifeEnv(gym.Env):
             self.live_pixels.remove((y, x))
             del self.pixel_energy[(y, x)]
             del self.pixel_ages[(y, x)]
+            if (y, x) in self.pixel_positions:
+                del self.pixel_positions[(y, x)]
+            if (y, x) in self.pixel_stagnation:
+                del self.pixel_stagnation[(y, x)]
     
     def do_consume(self, y, x, direction):
         """Consume dead cells or smaller organisms in the given direction.
@@ -411,6 +456,8 @@ class PixelLifeEnv(gym.Env):
                 self.live_pixels.add((target_y, target_x))
                 self.pixel_energy[(target_y, target_x)] = self.params['max_energy'] / 2
                 self.pixel_ages[(target_y, target_x)] = 0
+                self.pixel_positions[(target_y, target_x)] = (target_y, target_x)
+                self.pixel_stagnation[(target_y, target_x)] = 0
                 self.dead_cells.discard((target_y, target_x))
                 
             # Consume other live pixels (simplified - just consume individual pixels)
@@ -461,6 +508,8 @@ class PixelLifeEnv(gym.Env):
         self.live_pixels.add((new_y, new_x))
         self.pixel_energy[(new_y, new_x)] = self.params['max_energy'] / 2
         self.pixel_ages[(new_y, new_x)] = 0
+        self.pixel_positions[(new_y, new_x)] = (new_y, new_x)
+        self.pixel_stagnation[(new_y, new_x)] = 0
         
         # Reduce parent's energy
         self.pixel_energy[(y, x)] -= self.params['reproduce_cost']
