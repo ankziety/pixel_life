@@ -7,4 +7,4 @@ pixel_life/logs/*
 .DS_Store
 .vscode/*
 .venv/*
-.agent
+.agents/*

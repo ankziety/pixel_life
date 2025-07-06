@@ -34,6 +34,7 @@ from stable_baselines3 import PPO, DQN
 from src.model_manager import ModelManager
 from src.experiment_manager import ExperimentManager
 from src.system_monitor import SystemMonitor
+from src.interactive_cli import interactive_cli, is_interactive_mode
 
 # Apple Silicon acceleration imports
 try:
@@ -50,6 +51,18 @@ def run_basic_demo(args):
     """Run basic environment demonstration."""
     print("Running Basic Environment Demo")
     print("=" * 40)
+    
+    # Interactive parameter selection if enabled
+    if is_interactive_mode(args):
+        print("🎯 Interactive mode enabled - use arrow keys to select options")
+        size = interactive_cli.select_size(args.size)
+        steps = interactive_cli.select_steps(args.steps)
+        render = interactive_cli.confirm_render(args.render)
+        
+        # Update args with interactive selections
+        args.size = size
+        args.steps = steps
+        args.render = render
     
     # Use accelerated environment if requested
     if hasattr(args, 'accelerated') and args.accelerated and APPLE_ACCELERATION_AVAILABLE:
@@ -342,6 +355,24 @@ def run_training(args):
     print("Running Full Training Session")
     print("=" * 40)
     
+    # Interactive parameter selection if enabled
+    if is_interactive_mode(args):
+        print("🎯 Interactive mode enabled - use arrow keys to select options")
+        
+        # Basic parameters
+        size = interactive_cli.select_size(args.size)
+        device = interactive_cli.select_device()
+        
+        # Training parameters
+        training_params = interactive_cli.select_training_params()
+        
+        # Update args with interactive selections
+        args.size = size
+        args.device = device
+        args.timesteps = training_params.get('timesteps', args.timesteps)
+        args.learning_rate = training_params.get('learning_rate', args.learning_rate)
+        args.n_envs = training_params.get('n_envs', args.n_envs)
+    
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_dir = f"./logs/training_run_{timestamp}"
     
@@ -389,6 +420,16 @@ def run_evaluation(args):
     print("Running Model Evaluation")
     print("=" * 40)
     
+    # Interactive model selection if enabled
+    if is_interactive_mode(args) and not args.model_path:
+        print("🎯 Interactive mode enabled - use arrow keys to select options")
+        model_path = interactive_cli.select_model()
+        if model_path:
+            args.model_path = model_path
+        else:
+            print("Error: No model selected for evaluation")
+            sys.exit(1)
+    
     if not args.model_path:
         print("Error: --model-path is required for evaluation")
         sys.exit(1)
@@ -415,11 +456,15 @@ def run_evaluation(args):
         for step in range(args.steps):
             action, _ = model.predict(obs, deterministic=True)
             step_result = wrapped_env.step(action)
-            if len(step_result) == 5:
+            if isinstance(step_result, tuple) and len(step_result) == 5:
                 obs, reward, done, truncated, info = step_result
-            else:
+            elif isinstance(step_result, tuple) and len(step_result) == 4:
                 obs, reward, done, info = step_result
                 truncated = False
+            else:
+                # Handle unexpected return format
+                print(f"Warning: Unexpected step result format: {type(step_result)}")
+                break
             episode_reward += reward
             
             if args.render and step % 10 == 0:
@@ -681,7 +726,10 @@ def run_models_delete(args):
 def run_experiments_list(args):
     """List all experiments."""
     exp_manager = ExperimentManager()
-    experiments = exp_manager.list_experiments(status=args.status, tags=args.tags.split(",") if args.tags else None)
+    # Handle case where args.status and args.tags might not exist (when called as default)
+    status = getattr(args, 'status', None)
+    tags = getattr(args, 'tags', None)
+    experiments = exp_manager.list_experiments(status=status, tags=tags.split(",") if tags else None)
     
     print("🧪 Experiments")
     print("=" * 80)
@@ -702,6 +750,20 @@ def run_experiments_list(args):
 def run_experiments_create(args):
     """Create a new experiment."""
     exp_manager = ExperimentManager()
+    
+    # Interactive experiment creation if enabled
+    if is_interactive_mode(args):
+        print("🎯 Interactive mode enabled - use arrow keys to select options")
+        experiment_data = interactive_cli.create_experiment_interactive()
+        
+        # Update args with interactive selections
+        args.name = experiment_data.get('name', args.name)
+        args.description = experiment_data.get('description', args.description)
+        args.tags = ','.join(experiment_data.get('tags', []))
+        args.hyperparams = []
+        if 'hyperparameters' in experiment_data:
+            for key, value in experiment_data['hyperparameters'].items():
+                args.hyperparams.append(f"{key}={value}")
     
     # Parse hyperparameters from command line
     hyperparameters = {}
@@ -892,6 +954,13 @@ def run_visualize_compare(args):
 
 def run_workflow_batch(args):
     """Run batch processing workflow."""
+    
+    # Interactive workflow selection if enabled
+    if is_interactive_mode(args):
+        print("🎯 Interactive mode enabled - use arrow keys to select options")
+        workflow = interactive_cli.select_workflow()
+        args.workflow = workflow
+    
     print(f"🔄 Starting batch processing: {args.workflow}")
     
     if args.workflow == "train-multiple":
@@ -961,16 +1030,25 @@ def run_workflow_batch(args):
                 model_path = f"./models/{model.model_id}_{model.name}.zip"
                 if os.path.exists(model_path):
                     env = PixelLifeEnv(H=30, W=30)
+                    wrapped_env = PixelLifeWrapper(env, 'main')
                     model_obj = PPO.load(model_path)
                     
                     # Run evaluation
-                    obs = env.reset()
+                    reset_result = wrapped_env.reset()
+                    obs = reset_result[0] if isinstance(reset_result, tuple) else reset_result
                     total_reward = 0
                     for step in range(100):
                         action, _ = model_obj.predict(obs, deterministic=True)
-                        obs, reward, done, info = env.step(action)
+                        step_result = wrapped_env.step(action)
+                        if isinstance(step_result, tuple) and len(step_result) == 5:
+                            obs, reward, done, truncated, info = step_result
+                        elif isinstance(step_result, tuple) and len(step_result) == 4:
+                            obs, reward, done, info = step_result
+                            truncated = False
+                        else:
+                            break
                         total_reward += reward
-                        if done:
+                        if done or truncated:
                             break
                     
                     # Update model performance
@@ -1153,6 +1231,7 @@ def main():
     basic_parser.add_argument('--size', type=int, default=30, help='The size of the environment grid in pixels (default: 30)')
     basic_parser.add_argument('--steps', type=int, default=200, help='Number of simulation steps to run (default: 200)')
     basic_parser.add_argument('--render', action='store_true', help='Enable visual rendering of the environment during simulation')
+    basic_parser.add_argument('--no-interactive', action='store_true', help='Disable interactive prompts and use command-line arguments only')
     if APPLE_ACCELERATION_AVAILABLE:
         basic_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration for improved performance')
     basic_parser.set_defaults(func=run_basic_demo)
@@ -1222,6 +1301,7 @@ def main():
     train_parser.add_argument('--gamma', type=float, default=0.99, help='Discount factor for future rewards (default: 0.99)')
     train_parser.add_argument('--device', choices=['cpu', 'cuda', 'mps'], default='cpu', help='Computing device to use for training (default: cpu)')
     train_parser.add_argument('--no-tensorboard', action='store_true', help='Disable TensorBoard logging and visualization')
+    train_parser.add_argument('--no-interactive', action='store_true', help='Disable interactive prompts and use command-line arguments only')
     if APPLE_ACCELERATION_AVAILABLE:
         train_parser.add_argument('--accelerated', action='store_true', help='Use Apple Silicon acceleration for improved training performance')
     train_parser.set_defaults(func=run_training)
@@ -1313,6 +1393,7 @@ def main():
 
     # Experiments management parser
     experiments_parser = subparsers.add_parser('experiments', help='Machine learning experiment tracking and management')
+    experiments_parser.set_defaults(func=run_experiments_list)  # Default to list when no subcommand given
     experiments_subparsers = experiments_parser.add_subparsers(dest='experiments_cmd', help='Experiment management commands')
 
     # List experiments
@@ -1328,6 +1409,7 @@ def main():
     experiments_create.add_argument('--hyperparams', nargs='*', help='Training hyperparameters in key=value format (e.g., learning_rate=0.001 batch_size=64)')
     experiments_create.add_argument('--parent', type=str, help='ID of the parent experiment for branching experiments')
     experiments_create.add_argument('--tags', type=str, help='Tags for categorizing the experiment (comma-separated list)')
+    experiments_create.add_argument('--no-interactive', action='store_true', help='Disable interactive prompts and use command-line arguments only')
     experiments_create.set_defaults(func=run_experiments_create)
 
     # Get experiment info
@@ -1365,6 +1447,7 @@ def main():
     # Batch training
     batch_train = workflow_subparsers.add_parser('batch', help='Run automated batch training and evaluation workflows')
     batch_train.add_argument('--workflow', choices=['train-multiple', 'evaluate-all'], required=True, help='Type of workflow to execute: train-multiple or evaluate-all')
+    batch_train.add_argument('--no-interactive', action='store_true', help='Disable interactive prompts and use command-line arguments only')
     batch_train.set_defaults(func=run_workflow_batch)
 
     # Debug parser

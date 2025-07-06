@@ -1,0 +1,26 @@
+{
+  "test-experiment_20250705_140112": {
+    "experiment_id": "test-experiment_20250705_140112",
+    "name": "test-experiment",
+    "description": "Testing the experiments command",
+    "status": "created",
+    "created_at": "2025-07-05T14:01:12.765505",
+    "updated_at": "2025-07-05T14:01:12.765505",
+    "tags": [],
+    "hyperparameters": {},
+    "results": {},
+    "parent_experiment": null
+  },
+  "test-interactive_20250705_141653": {
+    "experiment_id": "test-interactive_20250705_141653",
+    "name": "test-interactive",
+    "description": "Testing interactive mode",
+    "status": "created",
+    "created_at": "2025-07-05T14:16:53.247695",
+    "updated_at": "2025-07-05T14:16:53.247695",
+    "tags": [],
+    "hyperparameters": {},
+    "results": {},
+    "parent_experiment": null
+  }
+}
