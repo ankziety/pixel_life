@@ -8,3 +8,7 @@ pixel_life/logs/*
 .vscode/*
 .venv/*
 .agents/*
+models/*
+experiments/
+research/
+
