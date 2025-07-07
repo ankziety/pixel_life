@@ -9,6 +9,8 @@ pixel_life/logs/*
 .venv/*
 .agents/*
 models/*
-experiments/
-research/
+experiments/*
+research/*
 
+.cursor/*
+.cursor/rules/*
